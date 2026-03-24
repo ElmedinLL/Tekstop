@@ -3,9 +3,9 @@ using TechVault.API.Models;
 
 namespace TechVault.API.Data;
 
-public class TechVaultDbContext : DbContext
+public class ApplicationDbContext : DbContext
 {
-    public TechVaultDbContext(DbContextOptions<TechVaultDbContext> options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
@@ -14,6 +14,8 @@ public class TechVaultDbContext : DbContext
     public DbSet<Address> Addresses => Set<Address>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<ProductTag> ProductTags => Set<ProductTag>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
@@ -23,19 +25,62 @@ public class TechVaultDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        ConfigureUser(modelBuilder);
+        ConfigureAddress(modelBuilder);
+        ConfigureCategory(modelBuilder);
+        ConfigureProduct(modelBuilder);
+        ConfigureTag(modelBuilder);
+        ConfigureProductTag(modelBuilder);
+        ConfigureCartItem(modelBuilder);
+        ConfigureOrder(modelBuilder);
+        ConfigureOrderItem(modelBuilder);
+        ConfigureReview(modelBuilder);
+
+        ApplicationDbContextSeed.Apply(modelBuilder);
+    }
+
+    private static void ConfigureUser(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Role);
+
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.PasswordHash).HasMaxLength(512);
             entity.Property(e => e.FirstName).HasMaxLength(100);
             entity.Property(e => e.LastName).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(32);
             entity.Property(e => e.Role).HasConversion<int>();
-        });
 
+            entity.HasMany(u => u.Addresses)
+                .WithOne(a => a.User)
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(u => u.CartItems)
+                .WithOne(c => c.User)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(u => u.Orders)
+                .WithOne(o => o.User)
+                .HasForeignKey(o => o.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(u => u.Reviews)
+                .WithOne(r => r.User)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureAddress(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Address>(entity =>
         {
+            entity.HasIndex(e => e.UserId);
+
             entity.Property(e => e.Label).HasMaxLength(64);
             entity.Property(e => e.FullName).HasMaxLength(200);
             entity.Property(e => e.Line1).HasMaxLength(256);
@@ -45,16 +90,16 @@ public class TechVaultDbContext : DbContext
             entity.Property(e => e.PostalCode).HasMaxLength(32);
             entity.Property(e => e.Country).HasMaxLength(128);
             entity.Property(e => e.Phone).HasMaxLength(32);
-
-            entity.HasOne(e => e.User)
-                .WithMany(u => u.Addresses)
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureCategory(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Category>(entity =>
         {
             entity.HasIndex(e => e.Slug).IsUnique();
+            entity.HasIndex(e => e.ParentCategoryId);
+
             entity.Property(e => e.Name).HasMaxLength(160);
             entity.Property(e => e.Slug).HasMaxLength(180);
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -63,12 +108,24 @@ public class TechVaultDbContext : DbContext
                 .WithMany(e => e.ChildCategories)
                 .HasForeignKey(e => e.ParentCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
-        });
 
+            entity.HasMany(c => c.Products)
+                .WithOne(p => p.Category)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureProduct(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Product>(entity =>
         {
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasIndex(e => e.CategoryId);
+            entity.HasIndex(e => new { e.CategoryId, e.IsPublished });
+            entity.HasIndex(e => e.Brand);
+
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(280);
             entity.Property(e => e.ShortDescription).HasMaxLength(500);
@@ -78,12 +135,56 @@ public class TechVaultDbContext : DbContext
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
 
-            entity.HasOne(e => e.Category)
-                .WithMany(c => c.Products)
-                .HasForeignKey(e => e.CategoryId)
+            entity.HasMany(p => p.OrderItems)
+                .WithOne(oi => oi.Product)
+                .HasForeignKey(oi => oi.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
-        });
 
+            entity.HasMany(p => p.CartItems)
+                .WithOne(c => c.Product)
+                .HasForeignKey(c => c.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(p => p.Reviews)
+                .WithOne(r => r.Product)
+                .HasForeignKey(r => r.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(p => p.ProductTags)
+                .WithOne(pt => pt.Product)
+                .HasForeignKey(pt => pt.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureTag(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.HasIndex(e => e.Slug).IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(80);
+            entity.Property(e => e.Slug).HasMaxLength(96);
+
+            entity.HasMany(t => t.ProductTags)
+                .WithOne(pt => pt.Tag)
+                .HasForeignKey(pt => pt.TagId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureProductTag(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProductTag>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductId, e.TagId });
+
+            entity.HasIndex(e => e.TagId);
+        });
+    }
+
+    private static void ConfigureCartItem(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<CartItem>(entity =>
         {
             entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
@@ -98,10 +199,17 @@ public class TechVaultDbContext : DbContext
                 .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureOrder(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.PlacedAtUtc);
+            entity.HasIndex(e => new { e.UserId, e.Status });
+
             entity.Property(e => e.OrderNumber).HasMaxLength(32);
             entity.Property(e => e.Status).HasConversion<int>();
             entity.Property(e => e.SubTotal).HasPrecision(18, 2);
@@ -134,10 +242,21 @@ public class TechVaultDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ShippingAddressId)
                 .OnDelete(DeleteBehavior.SetNull);
-        });
 
+            entity.HasMany(o => o.OrderItems)
+                .WithOne(oi => oi.Order)
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureOrderItem(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<OrderItem>(entity =>
         {
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.ProductId);
+
             entity.Property(e => e.ProductName).HasMaxLength(256);
             entity.Property(e => e.ProductSku).HasMaxLength(64);
             entity.Property(e => e.UnitPrice).HasPrecision(18, 2);
@@ -153,10 +272,15 @@ public class TechVaultDbContext : DbContext
                 .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+    }
 
+    private static void ConfigureReview(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Review>(entity =>
         {
             entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
+            entity.HasIndex(e => e.ProductId);
+
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Comment).HasMaxLength(4000);
 

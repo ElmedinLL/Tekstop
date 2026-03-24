@@ -10,7 +10,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 
-builder.Services.AddDbContext<TechVaultDbContext>(options =>
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddControllers();
