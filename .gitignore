@@ -1,0 +1,104 @@
+# Python / Virtual Environment
+venv/
+env/
+.env
+.venv/
+virtualenv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js / Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Shopify Specific
+.shopify/
+.shopify-cache/
+.theme-check.yml
+storefront.config.json
+
+# Environment Variables (Sensitive Data)
+.env.local
+.env.production
+.env.development
+.env.test
+*.env
+.env.*
+!.env.example
+
+# API Keys & Secrets
+secrets.json
+api-keys.json
+credentials.json
+*.pem
+*.key
+*.cert
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Build & Output Directories
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+*.log
+*.tmp
+*.temp
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js
+*.spec.js
+
+# Database Files
+*.sqlite
+*.db
+*.sql
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Docker
+.docker/
+docker-compose.override.yml
+*.pid
+
+# Theme Files (if using Shopify CLI)
+.theme/
+.theme-check/
+
+# Git
+*.orig
+*.rej
+.gitignore.local
