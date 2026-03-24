@@ -12,8 +12,8 @@ using TechVault.API.Data;
 namespace TechVault.API.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260324212812_InitialWithSeed")]
-    partial class InitialWithSeed
+    [Migration("20260324214656_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
