@@ -1,0 +1,72 @@
+# --- Build output (.NET) ---
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+msbuild.binlog
+*.nupkg
+*.snupkg
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+TestResults/
+[Tt]est[Rr]esult*/
+*.VisualState.xml
+
+# --- ASP.NET Core local config (templates stay tracked) ---
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+!appsettings.*.example.json
+
+# --- Secrets & env ---
+.env
+.env.*
+!.env.example
+secrets.json
+
+# --- Certificates ---
+*.pfx
+*.p12
+*.pem
+*.key
+!**/public/**/*.pem
+
+# --- Node / Vite ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- IDE & tools ---
+.vs/
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.DotSettings.user
+*.rsuser
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# --- Docker local overrides ---
+docker-compose.override.yml
