@@ -11,6 +11,8 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -25,6 +27,29 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(u => u.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("UTC_TIMESTAMP(6)");
+        });
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Token)
+                .HasMaxLength(512)
+                .IsRequired();
+
+            entity.HasIndex(e => e.Token)
+                .IsUnique();
+
+            entity.Property(e => e.CreatedAtUtc)
+                .IsRequired();
+
+            entity.Property(e => e.ExpiresAtUtc)
+                .IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

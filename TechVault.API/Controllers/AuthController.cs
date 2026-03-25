@@ -1,6 +1,8 @@
 using System.Linq;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TechVault.API.Data;
 using TechVault.API.Auth;
 using TechVault.API.Models.Enums;
 
@@ -11,7 +13,8 @@ namespace TechVault.API.Controllers;
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    AuthDbContext authDbContext)
     : ControllerBase
 {
     [HttpPost("register")]
@@ -61,6 +64,63 @@ public class AuthController(
         }
 
         var jwt = await jwtTokenService.GenerateToken(user);
+        return Ok(new AuthResponseDto
+        {
+            AccessToken = jwt.AccessToken,
+            AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
+            RefreshToken = jwt.RefreshToken
+        });
+    }
+
+    [HttpPost("login")]
+    public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto dto)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        if (userManager.SupportsUserLockout)
+        {
+            var lockoutEnd = user.LockoutEnd;
+            if (lockoutEnd.HasValue && lockoutEnd.Value.UtcDateTime > DateTime.UtcNow)
+            {
+                return StatusCode(StatusCodes.Status423Locked);
+            }
+        }
+
+        var passwordOk = await userManager.CheckPasswordAsync(user, dto.Password);
+        if (!passwordOk)
+        {
+            if (userManager.SupportsUserLockout)
+            {
+                await userManager.AccessFailedAsync(user);
+            }
+
+            return Unauthorized();
+        }
+
+        if (userManager.SupportsUserLockout)
+        {
+            await userManager.ResetAccessFailedCountAsync(user);
+        }
+
+        var jwt = await jwtTokenService.GenerateToken(user);
+
+        // Refresh tokens are stored server-side so they can be revoked later.
+        var refreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
+
+        authDbContext.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            Token = jwt.RefreshToken,
+            CreatedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = refreshTokenLifetimeUtc
+        });
+
+        await authDbContext.SaveChangesAsync();
+
         return Ok(new AuthResponseDto
         {
             AccessToken = jwt.AccessToken,
