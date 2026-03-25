@@ -19,6 +19,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
