@@ -4,12 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TechVault.API.Data;
+using TechVault.API.Models;
 using TechVault.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// --- Database -----------------------------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
@@ -18,9 +18,60 @@ var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
-builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
+// --- Repositories (scoped: shared DbContext instance per request) ------------
+builder.Services.AddScoped<IRepository<User>, BaseRepository<User>>();
+builder.Services.AddScoped<IRepository<Address>, BaseRepository<Address>>();
+builder.Services.AddScoped<IRepository<Category>, BaseRepository<Category>>();
+builder.Services.AddScoped<IRepository<Product>, BaseRepository<Product>>();
+builder.Services.AddScoped<IRepository<Tag>, BaseRepository<Tag>>();
+builder.Services.AddScoped<IRepository<ProductTag>, BaseRepository<ProductTag>>();
+builder.Services.AddScoped<IRepository<CartItem>, BaseRepository<CartItem>>();
+builder.Services.AddScoped<IRepository<Order>, BaseRepository<Order>>();
+builder.Services.AddScoped<IRepository<OrderItem>, BaseRepository<OrderItem>>();
+builder.Services.AddScoped<IRepository<Review>, BaseRepository<Review>>();
+
+// --- Unit of Work -------------------------------------------------------------
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// --- Application services -----------------------------------------------------
+// Register feature/domain services here, e.g.:
+// builder.Services.AddScoped<IProductService, ProductService>();
+
+// --- Web API ------------------------------------------------------------------
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+
+// --- OpenAPI / Swagger --------------------------------------------------------
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "TechVault API", Version = "v1" });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = JwtBearerDefaults.AuthenticationScheme,
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description =
+            "Paste only the JWT value. Swagger sends Authorization as Bearer plus this value."
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// --- CORS ---------------------------------------------------------------------
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
 {
@@ -32,6 +83,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// --- Authentication & authorization -------------------------------------------
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var signingKey = jwtSection["SigningKey"]
     ?? throw new InvalidOperationException("Jwt:SigningKey is not configured. Copy appsettings.example.json to appsettings.json and set a strong secret.");
@@ -61,37 +113,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "TechVault API", Version = "v1" });
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = JwtBearerDefaults.AuthenticationScheme,
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description =
-            "Paste only the JWT value. Swagger sends Authorization as Bearer plus this value."
-    });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
 
 var app = builder.Build();
 
