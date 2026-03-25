@@ -1,10 +1,12 @@
 import { Link, Route, Routes } from 'react-router-dom'
+import { AdminRoute } from './auth/AdminRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
 import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { AdminPage } from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -19,6 +21,9 @@ export default function App() {
           </Link>
           <Link className="text-blue-600 hover:underline" to="/account">
             Account
+          </Link>
+          <Link className="text-blue-600 hover:underline" to="/admin">
+            Admin
           </Link>
           <Link className="text-blue-600 hover:underline" to="/login">
             Sign in
@@ -38,6 +43,14 @@ export default function App() {
               <ProtectedRoute>
                 <AccountPage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
             }
           />
           <Route path="/login" element={<LoginPage />} />
