@@ -55,17 +55,33 @@ builder.Services.AddCors(options =>
     });
 });
 
-var jwtSection = builder.Configuration.GetSection("Jwt");
-var signingKey = jwtSection["SigningKey"]
-    ?? throw new InvalidOperationException("Jwt:SigningKey is not configured. Copy appsettings.example.json to appsettings.json and set a strong secret.");
-if (signingKey.Length < 32)
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+    ?? throw new InvalidOperationException("Jwt settings are not configured. Copy appsettings.example.json to appsettings.json and set Jwt:Secret/Issuer/Audience/ExpiryInDays.");
+
+if (string.IsNullOrWhiteSpace(jwtSettings.Secret))
 {
-    throw new InvalidOperationException("Jwt:SigningKey must be at least 32 characters for HS256.");
+    throw new InvalidOperationException("Jwt:Secret is not configured. Copy appsettings.example.json to appsettings.json and set a strong secret.");
+}
+if (jwtSettings.Secret.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:Secret must be at least 32 characters for HS256.");
+}
+if (string.IsNullOrWhiteSpace(jwtSettings.Issuer))
+{
+    throw new InvalidOperationException("Jwt:Issuer is not configured.");
+}
+if (string.IsNullOrWhiteSpace(jwtSettings.Audience))
+{
+    throw new InvalidOperationException("Jwt:Audience is not configured.");
+}
+if (jwtSettings.ExpiryInDays <= 0)
+{
+    throw new InvalidOperationException("Jwt:ExpiryInDays must be a positive integer.");
 }
 
-var issuer = jwtSection["Issuer"] ?? "TechVault";
-var audience = jwtSection["Audience"] ?? "TechVault.API";
-var symmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
+var symmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -75,9 +91,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = symmetricKey,
             ValidateIssuer = true,
-            ValidIssuer = issuer,
+            ValidIssuer = jwtSettings.Issuer,
             ValidateAudience = true,
-            ValidAudience = audience,
+            ValidAudience = jwtSettings.Audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(2)
         };
