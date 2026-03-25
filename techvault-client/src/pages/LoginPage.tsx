@@ -12,7 +12,7 @@ type FieldErrors = {
 function resolvePostLoginPath(location: Location): string {
   const state = location.state as { from?: Location } | undefined
   const candidate = state?.from?.pathname
-  if (candidate && candidate !== '/login') {
+  if (candidate && candidate !== '/login' && candidate !== '/register') {
     return candidate
   }
   return '/'
@@ -110,8 +110,12 @@ export function LoginPage() {
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>
       <p className="mt-1 text-sm text-slate-600">
         Use your TechVault account.{' '}
+        <Link className="font-medium text-blue-600 hover:underline" to="/register">
+          Create account
+        </Link>
+        {' · '}
         <Link className="font-medium text-blue-600 hover:underline" to="/">
-          Back to home
+          Home
         </Link>
       </p>
 

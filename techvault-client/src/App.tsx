@@ -4,6 +4,7 @@ import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
 import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 
 export default function App() {
   return (
@@ -22,6 +23,9 @@ export default function App() {
           <Link className="text-blue-600 hover:underline" to="/login">
             Sign in
           </Link>
+          <Link className="text-blue-600 hover:underline" to="/register">
+            Register
+          </Link>
         </nav>
       </header>
       <main>
@@ -37,6 +41,7 @@ export default function App() {
             }
           />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Routes>
       </main>
     </div>
