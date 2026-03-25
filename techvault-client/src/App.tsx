@@ -1,6 +1,9 @@
 import { Link, Route, Routes } from 'react-router-dom'
+import { ProtectedRoute } from './auth/ProtectedRoute'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
+import { AccountPage } from './pages/AccountPage'
+import { LoginPage } from './pages/LoginPage'
 
 export default function App() {
   return (
@@ -13,12 +16,27 @@ export default function App() {
           <Link className="text-blue-600 hover:underline" to="/about">
             About
           </Link>
+          <Link className="text-blue-600 hover:underline" to="/account">
+            Account
+          </Link>
+          <Link className="text-blue-600 hover:underline" to="/login">
+            Sign in
+          </Link>
         </nav>
       </header>
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>
     </div>
