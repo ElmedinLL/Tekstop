@@ -1,8 +1,10 @@
 using System.Text;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using TechVault.API.Auth;
 using TechVault.API.Data;
 using TechVault.API.Repositories;
 
@@ -18,7 +20,18 @@ var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
+builder.Services.AddDbContext<AuthDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion));
+
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
+
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.Password.RequireNonAlphanumeric = false;
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddEntityFrameworkStores<AuthDbContext>()
+    .AddDefaultTokenProviders();
 
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
