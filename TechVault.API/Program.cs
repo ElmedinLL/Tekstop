@@ -46,6 +46,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IdentitySeeder>();
 
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
@@ -59,6 +60,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.Configure<IdentitySeedOptions>(builder.Configuration.GetSection(IdentitySeedOptions.SectionName));
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt settings are not configured. Copy appsettings.example.json to appsettings.json and set Jwt:Secret/Issuer/Audience/ExpiryInDays.");
@@ -136,6 +138,15 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
+    var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
+        ?? new IdentitySeedOptions();
+
+    await seeder.SeedAsync(seedOptions);
+}
 
 if (app.Environment.IsDevelopment())
 {
