@@ -128,5 +128,71 @@ public class AuthController(
             RefreshToken = jwt.RefreshToken
         });
     }
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponseDto>> Refresh([FromBody] RefreshTokenDto dto)
+    {
+        var refreshToken = await authDbContext.RefreshTokens
+            .SingleOrDefaultAsync(rt => rt.Token == dto.RefreshToken);
+
+        if (refreshToken == null)
+        {
+            return Unauthorized();
+        }
+
+        if (refreshToken.IsRevoked)
+        {
+            return Unauthorized();
+        }
+
+        if (refreshToken.ExpiresAtUtc <= DateTime.UtcNow)
+        {
+            return Unauthorized();
+        }
+
+        // Rotation strategy:
+        // - revoke the used refresh token
+        // - issue a fresh JWT pair + a brand new refresh token
+        await using var tx = await authDbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            refreshToken.RevokedAtUtc = DateTime.UtcNow;
+
+            var user = await userManager.FindByIdAsync(refreshToken.UserId);
+            if (user == null)
+            {
+                await authDbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+                return Unauthorized();
+            }
+
+            var jwt = await jwtTokenService.GenerateToken(user);
+
+            var newRefreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
+            authDbContext.RefreshTokens.Add(new RefreshToken
+            {
+                UserId = user.Id,
+                Token = jwt.RefreshToken,
+                CreatedAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = newRefreshTokenLifetimeUtc
+            });
+
+            await authDbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(new AuthResponseDto
+            {
+                AccessToken = jwt.AccessToken,
+                AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
+                RefreshToken = jwt.RefreshToken
+            });
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
 }
 
