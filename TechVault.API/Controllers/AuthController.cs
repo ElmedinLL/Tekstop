@@ -1,4 +1,7 @@
 using System.Linq;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +20,65 @@ public class AuthController(
     AuthDbContext authDbContext)
     : ControllerBase
 {
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenDto dto)
+    {
+        var userId = ResolveCurrentUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var refreshToken = await authDbContext.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == dto.RefreshToken && rt.UserId == userId);
+
+        if (refreshToken != null && !refreshToken.IsRevoked)
+        {
+            refreshToken.RevokedAtUtc = DateTime.UtcNow;
+            await authDbContext.SaveChangesAsync();
+        }
+
+        // Idempotent: do not leak whether a token existed.
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public ActionResult<CurrentUserProfileDto> Me()
+    {
+        var userId = ResolveCurrentUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var email = User.FindFirstValue("Email")
+            ?? User.FindFirstValue(ClaimTypes.Email)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Email)
+            ?? string.Empty;
+
+        var firstName = User.FindFirstValue("FirstName") ?? string.Empty;
+        var lastName = User.FindFirstValue("LastName") ?? string.Empty;
+        var profilePicture = User.FindFirstValue("ProfilePicture");
+
+        var roles = User.Claims
+            .Where(c => c.Type == ClaimTypes.Role || c.Type == "Roles")
+            .Select(c => c.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return Ok(new CurrentUserProfileDto
+        {
+            UserId = userId,
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
+            ProfilePicture = profilePicture,
+            Roles = roles
+        });
+    }
+
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto dto)
     {
@@ -128,5 +190,10 @@ public class AuthController(
             RefreshToken = jwt.RefreshToken
         });
     }
+
+    private string? ResolveCurrentUserId()
+        => User.FindFirstValue("UserId")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
 }
 
