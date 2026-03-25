@@ -27,8 +27,19 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
+        // Password policy
+        options.Password.RequiredLength = 8;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireDigit = true;
         options.Password.RequireNonAlphanumeric = false;
+
+        // User policy
         options.User.RequireUniqueEmail = true;
+
+        // Lockout policy
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<AuthDbContext>()
     .AddDefaultTokenProviders();
