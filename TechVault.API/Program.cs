@@ -44,6 +44,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<AuthDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
 {
