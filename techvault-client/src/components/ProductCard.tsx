@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 export type ProductCardProps = {
@@ -19,10 +19,80 @@ export type ProductCardProps = {
   onWishlistToggle?: (id: ProductCardProps['id']) => void
   wishlisted?: boolean
   className?: string
+  /**
+   * Optional query to visually highlight in the product title (used by search results).
+   * Example: "probook" will highlight matching substrings within `name`.
+   */
+  highlightQuery?: string | null
 }
 
 const priceFormatter = (currency: string) =>
   new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 })
+
+function escapeRegExp(input: string) {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function highlightText(text: string, query: string | null | undefined): ReactNode {
+  const q = query?.trim() ?? ''
+  if (!q) {
+    return text
+  }
+
+  const tokens = q
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .sort((a, b) => b.length - a.length)
+
+  if (tokens.length === 0) {
+    return text
+  }
+
+  const re = new RegExp(tokens.map(escapeRegExp).join('|'), 'ig')
+
+  // Fast path: no match at all.
+  re.lastIndex = 0
+  const first = re.exec(text)
+  if (!first || first.index == null) {
+    return text
+  }
+
+  re.lastIndex = 0
+
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = re.exec(text)) !== null) {
+    const start = match.index
+    const end = start + match[0].length
+
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start))
+    }
+
+    nodes.push(
+      <mark key={`${start}-${end}`} className="rounded bg-yellow-200 px-0.5 text-slate-900">
+        {text.slice(start, end)}
+      </mark>,
+    )
+
+    lastIndex = end
+
+    // Avoid infinite loops on zero-length matches.
+    if (re.lastIndex === start) {
+      re.lastIndex++
+    }
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return <>{nodes}</>
+}
 
 function StarIcon({ className = '' }: { className?: string }) {
   return (
@@ -96,6 +166,7 @@ export function ProductCard({
   onWishlistToggle,
   wishlisted = false,
   className = '',
+  highlightQuery = null,
 }: ProductCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const inStock = stockQuantity > 0
@@ -144,10 +215,10 @@ export function ProductCard({
     <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-slate-900">
       {productTo ? (
         <Link to={productTo} className="hover:text-blue-700 focus:outline-none focus-visible:text-blue-700">
-          {name}
+          {highlightText(name, highlightQuery)}
         </Link>
       ) : (
-        name
+        highlightText(name, highlightQuery)
       )}
     </h3>
   )
