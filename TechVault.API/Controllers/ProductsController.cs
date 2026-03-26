@@ -16,12 +16,20 @@ namespace TechVault.API.Controllers;
 public sealed class ProductsController(
     IRepository<Product> productRepository,
     IRepository<Category> categoryRepository,
+    IRepository<ProductImage> productImageRepository,
     IProductRepository productCatalog,
     IAdminProductService adminProductService,
-    IMapper mapper) : ControllerBase
+    IMapper mapper,
+    IWebHostEnvironment webHostEnvironment) : ControllerBase
 {
     private const int MaxPageSize = 100;
     private const int DefaultPageSize = 20;
+    private const int MaxImagesPerProduct = 5;
+
+    private static readonly HashSet<string> AllowedImageExtensions =
+    [
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"
+    ];
 
     /// <summary>Returns a single published product by id.</summary>
     [HttpGet("{id:int}")]
@@ -259,6 +267,85 @@ public sealed class ProductsController(
         {
             return Conflict("Could not save the product.");
         }
+    }
+
+    /// <summary>Uploads a product image (admin). Stored under wwwroot/images; up to 5 images per product.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/images")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ProductImageUploadResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductImageUploadResponse>> UploadProductImage(
+        int id,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest("A non-empty image file is required.");
+        }
+
+        if (!await productRepository.AnyAsync(p => p.Id == id, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        var imageCount = await productImageRepository.CountAsync(i => i.ProductId == id, cancellationToken);
+        if (imageCount >= MaxImagesPerProduct)
+        {
+            return BadRequest($"A maximum of {MaxImagesPerProduct} images per product is allowed.");
+        }
+
+        var ext = Path.GetExtension(file.FileName);
+        if (string.IsNullOrEmpty(ext) || !AllowedImageExtensions.Contains(ext.ToLowerInvariant()))
+        {
+            return BadRequest("Allowed image types: JPEG, PNG, GIF, WebP, BMP, SVG.");
+        }
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("The uploaded file must be an image.");
+        }
+
+        var webRoot = webHostEnvironment.WebRootPath;
+        if (string.IsNullOrEmpty(webRoot))
+        {
+            webRoot = Path.Combine(webHostEnvironment.ContentRootPath, "wwwroot");
+        }
+
+        var imagesDir = Path.Combine(webRoot, "images");
+        Directory.CreateDirectory(imagesDir);
+
+        var fileName = $"product-{id.ToString(CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}{ext}";
+        var physicalPath = Path.Combine(imagesDir, fileName);
+
+        await using (var stream = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                       bufferSize: 64 * 1024, useAsync: true))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        var publicUrl = "/images/" + fileName;
+
+        var maxSort = await productImageRepository.QueryAsNoTracking()
+            .Where(i => i.ProductId == id)
+            .Select(i => (int?)i.SortOrder)
+            .MaxAsync(cancellationToken);
+        var sortOrder = (maxSort ?? -1) + 1;
+
+        var entity = new ProductImage
+        {
+            ProductId = id,
+            Url = publicUrl,
+            SortOrder = sortOrder
+        };
+
+        await productImageRepository.AddAsync(entity, cancellationToken);
+        await productImageRepository.SaveChangesAsync(cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created,
+            new ProductImageUploadResponse { Id = entity.Id, Url = entity.Url, SortOrder = entity.SortOrder });
     }
 
     /// <summary>Soft-deletes a product (admin): hides from storefront and frees slug/SKU for reuse.</summary>
