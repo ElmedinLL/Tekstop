@@ -59,7 +59,8 @@ public sealed class ProductsController(
     }
 
     /// <summary>
-    /// Published products in a category (by category slug). Query: search, minPrice, maxPrice,
+    /// Published products in a category (by category slug). Query: search (full-text on name/description),
+    /// specs (repeat <c>Key:Value</c>, e.g. RAM:16GB), minPrice, maxPrice,
     /// sort (price_asc|price_desc|name_asc|name_desc|newest|oldest|stock_desc), page, pageSize.
     /// </summary>
     [HttpGet("category/{slug}")]
@@ -94,17 +95,20 @@ public sealed class ProductsController(
 
         var filter = new ProductListFilter(
             CategoryId: null,
+            CategorySlug: null,
             MinPrice: query.MinPrice,
             MaxPrice: query.MaxPrice,
             Brand: null,
             InStockOnly: null,
-            PublishedOnly: true);
+            PublishedOnly: true,
+            SearchTerm: string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            SpecFilters: ProductSpecQueryParser.Parse(query.Specs));
 
         var pageRequest = new PageRequest(page, pageSize);
         var result = await productCatalog.GetByCategorySlugAsync(
             trimmed,
-            query.Search,
-            filter,
+            searchTerm: null,
+            filter: filter,
             sort,
             pageRequest,
             cancellationToken);
@@ -123,8 +127,9 @@ public sealed class ProductsController(
     }
 
     /// <summary>
-    /// Lists published products with optional filters. Query: category (id or slug), search, minPrice, maxPrice,
-    /// sort (price_asc|price_desc|name_asc|name_desc|newest|oldest), page, pageSize.
+    /// Lists published products with optional filters. Query: category (id or slug), search (full-text on name/description),
+    /// specs (repeat <c>Key:Value</c>), minPrice, maxPrice,
+    /// sort (price_asc|price_desc|name_asc|name_desc|newest|oldest|stock_desc), page, pageSize.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(PagedProductsResponse), StatusCodes.Status200OK)]
@@ -140,74 +145,47 @@ public sealed class ProductsController(
 
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize < 1 ? DefaultPageSize : Math.Min(query.PageSize, MaxPageSize);
+        var sortKey = query.Sort?.Trim().ToLowerInvariant() ?? "newest";
+        var sort = ParseSort(sortKey);
 
-        var baseQuery = productRepository.QueryAsNoTracking().Where(p => p.IsPublished);
-
+        int? categoryId = null;
+        string? categorySlug = null;
         if (!string.IsNullOrWhiteSpace(query.Category))
         {
             var c = query.Category.Trim();
-            if (int.TryParse(c, NumberStyles.Integer, CultureInfo.InvariantCulture, out var categoryId))
+            if (int.TryParse(c, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
             {
-                baseQuery = baseQuery.Where(p => p.CategoryId == categoryId);
+                categoryId = id;
             }
             else
             {
-                baseQuery = baseQuery.Where(p => p.Category.Slug == c);
+                categorySlug = c;
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
-        {
-            var term = query.Search.Trim();
-            baseQuery = baseQuery.Where(p =>
-                p.Name.Contains(term)
-                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
-                || p.Sku.Contains(term)
-                || (p.Brand != null && p.Brand.Contains(term)));
-        }
+        var filter = new ProductListFilter(
+            CategoryId: categoryId,
+            CategorySlug: categorySlug,
+            MinPrice: query.MinPrice,
+            MaxPrice: query.MaxPrice,
+            Brand: null,
+            InStockOnly: null,
+            PublishedOnly: true,
+            SearchTerm: string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            SpecFilters: ProductSpecQueryParser.Parse(query.Specs));
 
-        if (query.MinPrice.HasValue)
-        {
-            baseQuery = baseQuery.Where(p => p.Price >= query.MinPrice.Value);
-        }
+        var pageRequest = new PageRequest(page, pageSize);
+        var result = await productCatalog.GetAllAsync(filter, sort, pageRequest, cancellationToken);
 
-        if (query.MaxPrice.HasValue)
-        {
-            baseQuery = baseQuery.Where(p => p.Price <= query.MaxPrice.Value);
-        }
-
-        var sortKey = query.Sort?.Trim().ToLowerInvariant() ?? "newest";
-        var orderedQuery = ApplySort(baseQuery, sortKey);
-
-        var totalCount = await orderedQuery.CountAsync(cancellationToken);
-
-        var items = await orderedQuery
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(p => new ProductListItemDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Slug = p.Slug,
-                Price = p.Price,
-                CompareAtPrice = p.CompareAtPrice,
-                ImageUrl = p.ImageUrl,
-                Brand = p.Brand,
-                CategoryName = p.Category.Name,
-                CategorySlug = p.Category.Slug,
-                StockQuantity = p.StockQuantity,
-                IsPublished = p.IsPublished
-            })
-            .ToListAsync(cancellationToken);
-
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        var items = mapper.Map<IReadOnlyList<ProductListItemDto>>(result.Items);
+        var totalPages = result.TotalCount == 0 ? 0 : (int)Math.Ceiling(result.TotalCount / (double)result.PageSize);
 
         return Ok(new PagedProductsResponse
         {
             Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize,
+            TotalCount = result.TotalCount,
+            Page = result.PageNumber,
+            PageSize = result.PageSize,
             TotalPages = totalPages
         });
     }
@@ -379,18 +357,4 @@ public sealed class ProductsController(
             _ => ProductSort.NewestFirst
         };
 
-    private static IOrderedQueryable<Product> ApplySort(IQueryable<Product> query, string sortKey)
-    {
-        return sortKey switch
-        {
-            "price_asc" => query.OrderBy(p => p.Price),
-            "price_desc" => query.OrderByDescending(p => p.Price),
-            "name_asc" => query.OrderBy(p => p.Name),
-            "name_desc" => query.OrderByDescending(p => p.Name),
-            "name" => query.OrderBy(p => p.Name),
-            "oldest" => query.OrderBy(p => p.CreatedAtUtc),
-            "newest" => query.OrderByDescending(p => p.CreatedAtUtc),
-            _ => query.OrderByDescending(p => p.CreatedAtUtc)
-        };
-    }
 }

@@ -9,6 +9,9 @@ namespace TechVault.API.Repositories.Products;
 public sealed class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
     private const int MaxSkuLength = 64;
+    /// <summary>InnoDB default minimum token length for full-text indexes; shorter terms use LIKE fallback.</summary>
+    private const int FullTextMinTokenLength = 3;
+
     public async Task<PagedResult<Product>> GetAllAsync(
         ProductListFilter? filter,
         ProductSort sort,
@@ -52,29 +55,31 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             return EmptyPage(page);
         }
 
+        var merged = filter ?? new ProductListFilter();
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            merged = merged with { SearchTerm = searchTerm.Trim() };
+        }
+
         var query = CoreQuery().Where(p => p.Category.Slug == slug);
-        query = ApplyFilter(query, filter ?? new ProductListFilter());
-        query = ApplySearchTerm(query, searchTerm);
+        query = ApplyFilter(query, merged);
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
-    public async Task<PagedResult<Product>> SearchAsync(
-        string searchTerm,
+    public Task<PagedResult<Product>> SearchAsync(
+        string? searchTerm,
         ProductListFilter? filter,
         ProductSort sort,
         PageRequest page,
         CancellationToken cancellationToken = default)
     {
-        var term = searchTerm.Trim();
-        if (string.IsNullOrEmpty(term))
+        var merged = filter ?? new ProductListFilter();
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            return EmptyPage(page);
+            merged = merged with { SearchTerm = searchTerm.Trim() };
         }
 
-        var query = CoreQuery();
-        query = ApplyFilter(query, filter ?? new ProductListFilter());
-        query = ApplySearchTerm(query, searchTerm);
-        return await ToPagedAsync(query, sort, page, cancellationToken);
+        return GetAllAsync(merged, sort, page, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Product>> GetFeaturedAsync(
@@ -148,6 +153,11 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         {
             query = query.Where(p => p.CategoryId == categoryId);
         }
+        else if (!string.IsNullOrWhiteSpace(f.CategorySlug))
+        {
+            var slug = f.CategorySlug.Trim();
+            query = query.Where(p => p.Category.Slug == slug);
+        }
 
         if (f.MinPrice is { } min)
         {
@@ -175,10 +185,40 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             query = query.Where(p => p.IsPublished);
         }
 
+        query = ApplySpecFilters(query, f.SpecFilters);
+        query = ApplyFullTextSearch(query, f.SearchTerm);
         return query;
     }
 
-    private static IQueryable<Product> ApplySearchTerm(IQueryable<Product> query, string? searchTerm)
+    private static IQueryable<Product> ApplySpecFilters(
+        IQueryable<Product> query,
+        IReadOnlyList<KeyValuePair<string, string>>? specFilters)
+    {
+        if (specFilters is null || specFilters.Count == 0)
+        {
+            return query;
+        }
+
+        foreach (var pair in specFilters)
+        {
+            var key = pair.Key;
+            var expected = pair.Value.Trim();
+            if (string.IsNullOrEmpty(expected))
+            {
+                continue;
+            }
+
+            var path = "$." + key;
+            query = query.Where(p =>
+                p.SpecsJson != null
+                && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(p.SpecsJson, new[] { path }))!.ToLower()
+                    == expected.ToLower());
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Product> ApplyFullTextSearch(IQueryable<Product> query, string? searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -186,11 +226,18 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         var term = searchTerm.Trim();
-        return query.Where(
-            p => p.Name.Contains(term)
-                || p.Sku.Contains(term)
-                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
-                || (p.Brand != null && p.Brand.Contains(term)));
+        if (term.Length < FullTextMinTokenLength)
+        {
+            return query.Where(p =>
+                EF.Functions.Like(p.Name, "%" + term + "%")
+                || (p.Description != null && EF.Functions.Like(p.Description, "%" + term + "%")));
+        }
+
+        return query.Where(p =>
+            EF.Functions.IsMatch(
+                new[] { p.Name, p.Description },
+                term,
+                MySqlMatchSearchMode.NaturalLanguage));
     }
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>
