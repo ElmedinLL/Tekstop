@@ -132,6 +132,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Sku).HasMaxLength(64);
             entity.Property(e => e.Brand).HasMaxLength(120);
             entity.Property(e => e.ImageUrl).HasMaxLength(2048);
+            entity.Property(e => e.ImagesJson).HasColumnType("longtext");
+            entity.Property(e => e.SpecsJson).HasColumnType("longtext");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
 
