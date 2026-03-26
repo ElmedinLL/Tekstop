@@ -481,6 +481,9 @@ namespace TechVault.API.Data.Migrations
 
                     b.HasIndex("IsDeleted");
 
+                    b.HasIndex("Name", "Description")
+                        .HasAnnotation("MySql:FullTextIndex", true);
+
                     b.ToTable("Products");
 
                     b.HasData(

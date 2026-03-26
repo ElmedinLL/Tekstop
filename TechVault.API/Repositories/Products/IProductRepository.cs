@@ -31,8 +31,9 @@ public interface IProductRepository
         PageRequest page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Published products with optional full-text <paramref name="searchTerm"/> and filters (same as <see cref="GetAllAsync"/>).</summary>
     Task<PagedResult<Product>> SearchAsync(
-        string searchTerm,
+        string? searchTerm,
         ProductListFilter? filter,
         ProductSort sort,
         PageRequest page,

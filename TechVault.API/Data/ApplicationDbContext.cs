@@ -126,6 +126,8 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Brand);
             entity.HasIndex(e => e.IsDeleted);
 
+            entity.HasIndex(e => new { e.Name, e.Description }).IsFullText();
+
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(280);
             entity.Property(e => e.ShortDescription).HasMaxLength(500);
