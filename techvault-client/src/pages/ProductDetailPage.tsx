@@ -3,8 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { api } from '../lib/api'
-import { resolveApiAssetUrl } from '../lib/assetUrl'
 import type { ProductDetail } from '../types/product'
+import { ProductImageGallery } from '../components/ProductImageGallery'
 
 async function fetchProductById(id: number): Promise<ProductDetail> {
   const { data } = await api.get<ProductDetail>(`/products/${id}`)
@@ -13,65 +13,6 @@ async function fetchProductById(id: number): Promise<ProductDetail> {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
-}
-
-type GalleryProps = {
-  images: string[]
-  productName: string
-}
-
-function ProductImageGallery({ images, productName }: GalleryProps) {
-  const resolved = useMemo(
-    () => images.map((u) => resolveApiAssetUrl(u)).filter(Boolean),
-    [images],
-  )
-  const [active, setActive] = useState(0)
-
-  useEffect(() => {
-    setActive(0)
-  }, [images])
-
-  if (resolved.length === 0) {
-    return (
-      <div className="aspect-[4/3] w-full rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">
-        No images
-      </div>
-    )
-  }
-
-  const safeIndex = Math.min(active, resolved.length - 1)
-  const mainSrc = resolved[safeIndex] ?? resolved[0]
-
-  return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <img
-          src={mainSrc}
-          alt={productName}
-          className="aspect-[4/3] w-full object-contain bg-slate-50"
-        />
-      </div>
-      {resolved.length > 1 && (
-        <ul className="flex flex-wrap gap-2" role="list">
-          {resolved.map((src, i) => (
-            <li key={src + i}>
-              <button
-                type="button"
-                onClick={() => setActive(i)}
-                className={`overflow-hidden rounded-lg border-2 bg-white p-0.5 transition ${
-                  safeIndex === i ? 'border-blue-600 ring-1 ring-blue-600' : 'border-transparent hover:border-slate-300'
-                }`}
-                aria-label={`View image ${i + 1} of ${resolved.length}`}
-                aria-current={safeIndex === i ? 'true' : undefined}
-              >
-                <img src={src} alt="" className="h-16 w-16 object-cover" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
 }
 
 export function ProductDetailPage() {
