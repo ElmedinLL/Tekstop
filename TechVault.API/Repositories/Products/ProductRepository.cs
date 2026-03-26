@@ -36,6 +36,26 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
+    public async Task<PagedResult<Product>> GetByCategorySlugAsync(
+        string categorySlug,
+        string? searchTerm,
+        ProductListFilter? filter,
+        ProductSort sort,
+        PageRequest page,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = categorySlug.Trim();
+        if (string.IsNullOrEmpty(slug))
+        {
+            return EmptyPage(page);
+        }
+
+        var query = CoreQuery().Where(p => p.Category.Slug == slug);
+        query = ApplyFilter(query, filter ?? new ProductListFilter());
+        query = ApplySearchTerm(query, searchTerm);
+        return await ToPagedAsync(query, sort, page, cancellationToken);
+    }
+
     public async Task<PagedResult<Product>> SearchAsync(
         string searchTerm,
         ProductListFilter? filter,
@@ -51,11 +71,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
 
         var query = CoreQuery();
         query = ApplyFilter(query, filter ?? new ProductListFilter());
-        query = query.Where(
-            p => p.Name.Contains(term)
-                || p.Sku.Contains(term)
-                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
-                || (p.Brand != null && p.Brand.Contains(term)));
+        query = ApplySearchTerm(query, searchTerm);
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
@@ -116,6 +132,21 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         return query;
+    }
+
+    private static IQueryable<Product> ApplySearchTerm(IQueryable<Product> query, string? searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return query;
+        }
+
+        var term = searchTerm.Trim();
+        return query.Where(
+            p => p.Name.Contains(term)
+                || p.Sku.Contains(term)
+                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
+                || (p.Brand != null && p.Brand.Contains(term)));
     }
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>

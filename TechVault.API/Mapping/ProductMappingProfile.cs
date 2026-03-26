@@ -32,6 +32,11 @@ public sealed class ProductMappingProfile : Profile
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
             .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
 
+        CreateMap<Product, ProductListItemDto>()
+            .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
+            .ForMember(d => d.CategorySlug, o => o.MapFrom(s => s.Category.Slug))
+            .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.StockQuantity));
+
         CreateMap<CreateProductDto, Product>()
             .ForMember(d => d.Category, o => o.Ignore())
             .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.Stock))

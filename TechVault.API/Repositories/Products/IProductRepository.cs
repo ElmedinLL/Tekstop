@@ -20,6 +20,17 @@ public interface IProductRepository
         PageRequest page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Published products in a category identified by category slug. Optional <paramref name="searchTerm"/> filters like <see cref="SearchAsync"/>.
+    /// </summary>
+    Task<PagedResult<Product>> GetByCategorySlugAsync(
+        string categorySlug,
+        string? searchTerm,
+        ProductListFilter? filter,
+        ProductSort sort,
+        PageRequest page,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<Product>> SearchAsync(
         string searchTerm,
         ProductListFilter? filter,

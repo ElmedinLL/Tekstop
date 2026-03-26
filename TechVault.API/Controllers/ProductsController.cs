@@ -1,17 +1,115 @@
 using System.Globalization;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TechVault.API.Models;
+using TechVault.API.Products;
 using TechVault.API.Repositories;
+using TechVault.API.Repositories.Products;
 
 namespace TechVault.API.Controllers;
 
 [ApiController]
 [Route("api/products")]
-public sealed class ProductsController(IRepository<Product> productRepository) : ControllerBase
+public sealed class ProductsController(
+    IRepository<Product> productRepository,
+    IRepository<Category> categoryRepository,
+    IProductRepository productCatalog,
+    IMapper mapper) : ControllerBase
 {
     private const int MaxPageSize = 100;
     private const int DefaultPageSize = 20;
+
+    /// <summary>Returns a single published product by id.</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductDto>> GetProductById(int id, CancellationToken cancellationToken)
+    {
+        var product = await productCatalog.GetByIdAsync(id, cancellationToken);
+        if (product is null || !product.IsPublished)
+        {
+            return NotFound();
+        }
+
+        return Ok(mapper.Map<ProductDto>(product));
+    }
+
+    /// <summary>Featured products for the homepage (published, in stock, newest first).</summary>
+    [HttpGet("featured")]
+    [ProducesResponseType(typeof(IReadOnlyList<ProductListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ProductListItemDto>>> GetFeaturedProducts(
+        [FromQuery] int take = 8,
+        CancellationToken cancellationToken = default)
+    {
+        var limit = take < 1 ? 8 : Math.Min(take, MaxPageSize);
+        var products = await productCatalog.GetFeaturedAsync(limit, cancellationToken);
+        return Ok(mapper.Map<IReadOnlyList<ProductListItemDto>>(products));
+    }
+
+    /// <summary>
+    /// Published products in a category (by category slug). Query: search, minPrice, maxPrice,
+    /// sort (price_asc|price_desc|name_asc|name_desc|newest|oldest|stock_desc), page, pageSize.
+    /// </summary>
+    [HttpGet("category/{slug}")]
+    [ProducesResponseType(typeof(PagedProductsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedProductsResponse>> GetProductsByCategory(
+        string slug,
+        [FromQuery] ProductCategoryPageQueryParameters query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return BadRequest("Category slug is required.");
+        }
+
+        var trimmed = slug.Trim();
+        if (!await categoryRepository.AnyAsync(c => c.Slug == trimmed, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        if (query.MinPrice.HasValue && query.MaxPrice.HasValue && query.MinPrice > query.MaxPrice)
+        {
+            return BadRequest("minPrice cannot be greater than maxPrice.");
+        }
+
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? DefaultPageSize : Math.Min(query.PageSize, MaxPageSize);
+        var sortKey = query.Sort?.Trim().ToLowerInvariant() ?? "newest";
+        var sort = ParseSort(sortKey);
+
+        var filter = new ProductListFilter(
+            CategoryId: null,
+            MinPrice: query.MinPrice,
+            MaxPrice: query.MaxPrice,
+            Brand: null,
+            InStockOnly: null,
+            PublishedOnly: true);
+
+        var pageRequest = new PageRequest(page, pageSize);
+        var result = await productCatalog.GetByCategorySlugAsync(
+            trimmed,
+            query.Search,
+            filter,
+            sort,
+            pageRequest,
+            cancellationToken);
+
+        var items = mapper.Map<IReadOnlyList<ProductListItemDto>>(result.Items);
+        var totalPages = result.TotalCount == 0 ? 0 : (int)Math.Ceiling(result.TotalCount / (double)result.PageSize);
+
+        return Ok(new PagedProductsResponse
+        {
+            Items = items,
+            TotalCount = result.TotalCount,
+            Page = result.PageNumber,
+            PageSize = result.PageSize,
+            TotalPages = totalPages
+        });
+    }
 
     /// <summary>
     /// Lists published products with optional filters. Query: category (id or slug), search, minPrice, maxPrice,
@@ -102,6 +200,20 @@ public sealed class ProductsController(IRepository<Product> productRepository) :
             TotalPages = totalPages
         });
     }
+
+    private static ProductSort ParseSort(string sortKey) =>
+        sortKey switch
+        {
+            "price_asc" => ProductSort.PriceAscending,
+            "price_desc" => ProductSort.PriceDescending,
+            "name_asc" => ProductSort.NameAscending,
+            "name_desc" => ProductSort.NameDescending,
+            "name" => ProductSort.NameAscending,
+            "oldest" => ProductSort.OldestFirst,
+            "stock_desc" => ProductSort.StockDescending,
+            "newest" => ProductSort.NewestFirst,
+            _ => ProductSort.NewestFirst
+        };
 
     private static IOrderedQueryable<Product> ApplySort(IQueryable<Product> query, string sortKey)
     {
