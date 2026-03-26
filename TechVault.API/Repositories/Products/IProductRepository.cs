@@ -41,4 +41,9 @@ public interface IProductRepository
     Task<IReadOnlyList<Product>> GetFeaturedAsync(
         int take = 8,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Soft-deletes a product: marks deleted, clears publish, and rewrites slug/SKU so unique constraints allow reuse.
+    /// </summary>
+    Task<ProductSoftDeleteResult> SoftDeleteAsync(int id, CancellationToken cancellationToken = default);
 }

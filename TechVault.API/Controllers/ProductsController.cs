@@ -1,11 +1,13 @@
 using System.Globalization;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TechVault.API.Models;
 using TechVault.API.Products;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
+using TechVault.API.Services;
 
 namespace TechVault.API.Controllers;
 
@@ -15,6 +17,7 @@ public sealed class ProductsController(
     IRepository<Product> productRepository,
     IRepository<Category> categoryRepository,
     IProductRepository productCatalog,
+    IAdminProductService adminProductService,
     IMapper mapper) : ControllerBase
 {
     private const int MaxPageSize = 100;
@@ -199,6 +202,80 @@ public sealed class ProductsController(
             PageSize = pageSize,
             TotalPages = totalPages
         });
+    }
+
+    /// <summary>Creates a product (admin).</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProductDto>> CreateProduct(
+        [FromBody] CreateProductDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var product = await adminProductService.CreateAsync(dto, cancellationToken);
+            var detail = await productCatalog.GetByIdAsync(product.Id, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, mapper.Map<ProductDto>(detail!));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Could not save the product.");
+        }
+    }
+
+    /// <summary>Updates a product (admin).</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductDto>> UpdateProduct(
+        int id,
+        [FromBody] UpdateProductDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var product = await adminProductService.UpdateAsync(id, dto, cancellationToken);
+            if (product is null)
+            {
+                return NotFound();
+            }
+
+            var detail = await productCatalog.GetByIdAsync(product.Id, cancellationToken);
+            return Ok(mapper.Map<ProductDto>(detail!));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Could not save the product.");
+        }
+    }
+
+    /// <summary>Soft-deletes a product (admin): hides from storefront and frees slug/SKU for reuse.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
+    {
+        var result = await productCatalog.SoftDeleteAsync(id, cancellationToken);
+        return result switch
+        {
+            ProductSoftDeleteResult.NotFound => NotFound(),
+            ProductSoftDeleteResult.AlreadyDeleted => NoContent(),
+            ProductSoftDeleteResult.Deleted => NoContent(),
+            _ => throw new InvalidOperationException($"Unexpected delete result: {result}."),
+        };
     }
 
     private static ProductSort ParseSort(string sortKey) =>

@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using TechVault.API.Data;
 using TechVault.API.Models;
 using TechVault.API.Repositories;
+using TechVault.API.Services;
 
 namespace TechVault.API.Repositories.Products;
 
 public sealed class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
+    private const int MaxSkuLength = 64;
     public async Task<PagedResult<Product>> GetAllAsync(
         ProductListFilter? filter,
         ProductSort sort,
@@ -85,6 +87,48 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             .OrderByDescending(p => p.CreatedAtUtc)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ProductSoftDeleteResult> SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var product = await context.Products
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (product is null)
+        {
+            return ProductSoftDeleteResult.NotFound;
+        }
+
+        if (product.IsDeleted)
+        {
+            return ProductSoftDeleteResult.AlreadyDeleted;
+        }
+
+        var slugSuffix = $"-del-{product.Id}";
+        product.Slug = ProductSlugHelper.TruncateForSuffix(product.Slug, slugSuffix) + slugSuffix;
+
+        var skuSuffix = $"-DEL-{product.Id}";
+        product.Sku = AppendSkuSuffix(product.Sku, skuSuffix);
+
+        product.IsDeleted = true;
+        product.DeletedAtUtc = DateTime.UtcNow;
+        product.IsPublished = false;
+        product.UpdatedAtUtc = DateTime.UtcNow;
+
+        await context.SaveChangesAsync(cancellationToken);
+        return ProductSoftDeleteResult.Deleted;
+    }
+
+    private static string AppendSkuSuffix(string sku, string suffix)
+    {
+        if (sku.Length + suffix.Length <= MaxSkuLength)
+        {
+            return sku + suffix;
+        }
+
+        var max = MaxSkuLength - suffix.Length;
+        return max <= 0 ? suffix[..MaxSkuLength] : sku[..max] + suffix;
     }
 
     /// <summary>
