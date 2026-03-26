@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -54,10 +53,15 @@ public sealed class CartService(
             throw new InvalidOperationException("Product is not available.");
         }
 
-        var addQty = Math.Min(qty, product.StockQuantity);
-        if (addQty < 1)
+        if (product.StockQuantity < 1)
         {
             throw new InvalidOperationException("Product is out of stock.");
+        }
+
+        if (qty > product.StockQuantity)
+        {
+            throw new InvalidOperationException(
+                $"Only {product.StockQuantity} unit(s) in stock.");
         }
 
         if (IsGuestUserId(userId))
@@ -66,11 +70,18 @@ public sealed class CartService(
             var line = lines.FirstOrDefault(l => l.ProductId == productId);
             if (line is not null)
             {
-                line.Quantity = Math.Min(line.Quantity + addQty, product.StockQuantity);
+                var combined = line.Quantity + qty;
+                if (combined > product.StockQuantity)
+                {
+                    throw new InvalidOperationException(
+                        $"Only {product.StockQuantity} unit(s) in stock. Your cart already has {line.Quantity}.");
+                }
+
+                line.Quantity = combined;
             }
             else
             {
-                lines.Add(new GuestCartLine { ProductId = productId, Quantity = addQty });
+                lines.Add(new GuestCartLine { ProductId = productId, Quantity = qty });
             }
 
             await WriteGuestLinesAsync(userId, lines, cancellationToken);
@@ -84,7 +95,14 @@ public sealed class CartService(
 
         if (existing is not null)
         {
-            existing.Quantity = Math.Min(existing.Quantity + addQty, product.StockQuantity);
+            var combined = existing.Quantity + qty;
+            if (combined > product.StockQuantity)
+            {
+                throw new InvalidOperationException(
+                    $"Only {product.StockQuantity} unit(s) in stock. Your cart already has {existing.Quantity}.");
+            }
+
+            existing.Quantity = combined;
             existing.UpdatedAtUtc = DateTime.UtcNow;
         }
         else
@@ -94,7 +112,7 @@ public sealed class CartService(
                 {
                     IdentityUserId = userId,
                     ProductId = productId,
-                    Quantity = addQty,
+                    Quantity = qty,
                     UpdatedAtUtc = DateTime.UtcNow
                 },
                 cancellationToken);
@@ -136,7 +154,13 @@ public sealed class CartService(
                     throw new InvalidOperationException("Product is not available.");
                 }
 
-                line.Quantity = Math.Min(qty, product.StockQuantity);
+                if (qty > product.StockQuantity)
+                {
+                    throw new InvalidOperationException(
+                        $"Only {product.StockQuantity} unit(s) in stock.");
+                }
+
+                line.Quantity = qty;
             }
 
             await WriteGuestLinesAsync(userId, lines, cancellationToken);
@@ -161,7 +185,13 @@ public sealed class CartService(
         else
         {
             var maxQty = existing.Product!.StockQuantity;
-            existing.Quantity = Math.Min(qty, maxQty);
+            if (qty > maxQty)
+            {
+                throw new InvalidOperationException(
+                    $"Only {maxQty} unit(s) in stock.");
+            }
+
+            existing.Quantity = qty;
             existing.UpdatedAtUtc = DateTime.UtcNow;
         }
 
@@ -222,6 +252,7 @@ public sealed class CartService(
             {
                 Lines = Array.Empty<CartLineDto>(),
                 SubTotal = 0,
+                DiscountTotal = 0,
                 TotalItemCount = 0,
                 IsAuthenticated = false
             };
@@ -289,6 +320,7 @@ public sealed class CartService(
 
         var lines = new List<CartLineDto>();
         decimal subTotal = 0;
+        decimal discountTotal = 0;
         var totalQty = 0;
 
         foreach (var item in items)
@@ -298,19 +330,29 @@ public sealed class CartService(
                 continue;
             }
 
-            var lineTotal = item.Product.Price * item.Quantity;
-            subTotal += lineTotal;
-            totalQty += item.Quantity;
+            var p = item.Product;
+            var qty = Math.Min(item.Quantity, p.StockQuantity);
+            if (qty < 1)
+            {
+                continue;
+            }
+
+            var pricing = ComputeLinePricing(p, qty);
+            subTotal += pricing.LineTotal;
+            discountTotal += pricing.LineDiscount;
+            totalQty += qty;
             lines.Add(
                 new CartLineDto
                 {
                     CartItemId = item.Id,
                     ProductId = item.ProductId,
-                    Name = item.Product.Name,
-                    ImageUrl = item.Product.ImageUrl,
-                    UnitPrice = item.Product.Price,
-                    Quantity = item.Quantity,
-                    LineTotal = lineTotal
+                    Name = p.Name,
+                    ImageUrl = p.ImageUrl,
+                    UnitPrice = pricing.UnitPrice,
+                    CompareAtPrice = pricing.CompareAtDisplay,
+                    Quantity = qty,
+                    LineTotal = pricing.LineTotal,
+                    LineDiscount = pricing.LineDiscount
                 });
         }
 
@@ -318,6 +360,7 @@ public sealed class CartService(
         {
             Lines = lines,
             SubTotal = subTotal,
+            DiscountTotal = discountTotal,
             TotalItemCount = totalQty,
             IsAuthenticated = true
         };
@@ -333,6 +376,7 @@ public sealed class CartService(
             {
                 Lines = Array.Empty<CartLineDto>(),
                 SubTotal = 0,
+                DiscountTotal = 0,
                 TotalItemCount = 0,
                 IsAuthenticated = false
             };
@@ -346,6 +390,7 @@ public sealed class CartService(
 
         var lines = new List<CartLineDto>();
         decimal subTotal = 0;
+        decimal discountTotal = 0;
         var totalQty = 0;
 
         foreach (var gl in guestLines)
@@ -355,14 +400,20 @@ public sealed class CartService(
                 continue;
             }
 
-            var q = Math.Min(gl.Quantity, product.StockQuantity);
+            if (gl.Quantity > product.StockQuantity)
+            {
+                continue;
+            }
+
+            var q = gl.Quantity;
             if (q < 1)
             {
                 continue;
             }
 
-            var lineTotal = product.Price * q;
-            subTotal += lineTotal;
+            var pricing = ComputeLinePricing(product, q);
+            subTotal += pricing.LineTotal;
+            discountTotal += pricing.LineDiscount;
             totalQty += q;
             lines.Add(
                 new CartLineDto
@@ -371,9 +422,11 @@ public sealed class CartService(
                     ProductId = gl.ProductId,
                     Name = product.Name,
                     ImageUrl = product.ImageUrl,
-                    UnitPrice = product.Price,
+                    UnitPrice = pricing.UnitPrice,
+                    CompareAtPrice = pricing.CompareAtDisplay,
                     Quantity = q,
-                    LineTotal = lineTotal
+                    LineTotal = pricing.LineTotal,
+                    LineDiscount = pricing.LineDiscount
                 });
         }
 
@@ -381,10 +434,33 @@ public sealed class CartService(
         {
             Lines = lines,
             SubTotal = subTotal,
+            DiscountTotal = discountTotal,
             TotalItemCount = totalQty,
             IsAuthenticated = false
         };
     }
+
+    private static CartLinePricing ComputeLinePricing(Product p, int quantity)
+    {
+        var unit = p.Price;
+        decimal lineTotal = unit * quantity;
+        decimal lineDiscount = 0;
+        decimal? compareDisplay = null;
+
+        if (p.CompareAtPrice is { } compare && compare > unit)
+        {
+            compareDisplay = compare;
+            lineDiscount = (compare - unit) * quantity;
+        }
+
+        return new CartLinePricing(unit, compareDisplay, lineTotal, lineDiscount);
+    }
+
+    private readonly record struct CartLinePricing(
+        decimal UnitPrice,
+        decimal? CompareAtDisplay,
+        decimal LineTotal,
+        decimal LineDiscount);
 
     private async Task<Product?> FindCartableProductAsync(int productId, CancellationToken cancellationToken)
     {
