@@ -23,6 +23,7 @@ public class Product
     public DateTime? UpdatedAtUtc { get; set; }
 
     public Category Category { get; set; } = null!;
+    public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductTag> ProductTags { get; set; } = new List<ProductTag>();
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();

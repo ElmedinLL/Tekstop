@@ -71,8 +71,16 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Base query: no-tracking, split queries (avoids row explosion with collection includes),
+    /// eager loads <see cref="Product.Category"/> and ordered <see cref="Product.Images"/>.
+    /// </summary>
     private IQueryable<Product> CoreQuery() =>
-        context.Products.AsNoTracking().Include(p => p.Category);
+        context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(p => p.Category)
+            .Include(p => p.Images.OrderBy(i => i.SortOrder).ThenBy(i => i.Id));
 
     private static IQueryable<Product> ApplyFilter(IQueryable<Product> query, ProductListFilter f)
     {
