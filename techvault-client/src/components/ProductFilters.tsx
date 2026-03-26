@@ -15,6 +15,8 @@ export type ProductFiltersProps = {
   /** Slider and input bounds for price (major units, e.g. dollars). */
   priceBounds?: { min: number; max: number }
   className?: string
+  /** When true, category checkboxes are hidden (e.g. on a category-scoped listing page). */
+  hideCategories?: boolean
 }
 
 const defaultPriceBounds = { min: 0, max: 10_000 }
@@ -39,7 +41,11 @@ function useDebouncedCallback(fn: () => void, delayMs: number) {
   }, [delayMs])
 }
 
-export function ProductFilters({ priceBounds = defaultPriceBounds, className = '' }: ProductFiltersProps) {
+export function ProductFilters({
+  priceBounds = defaultPriceBounds,
+  className = '',
+  hideCategories = false,
+}: ProductFiltersProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const { min: boundMin, max: boundMax } = priceBounds
 
@@ -166,6 +172,7 @@ export function ProductFilters({ priceBounds = defaultPriceBounds, className = '
     queryKey: ['categories', 'filters'],
     queryFn: fetchCategories,
     staleTime: 5 * 60 * 1000,
+    enabled: !hideCategories,
   })
 
   const activeCategories = useMemo(
@@ -185,34 +192,36 @@ export function ProductFilters({ priceBounds = defaultPriceBounds, className = '
     >
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Filters</h2>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-slate-900">Category</legend>
-        {isPending && <p className="text-sm text-slate-500">Loading categories…</p>}
-        {isError && <p className="text-sm text-red-600">Could not load categories.</p>}
-        {!isPending && !isError && activeCategories.length === 0 && (
-          <p className="text-sm text-slate-500">No categories.</p>
-        )}
-        <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-          {activeCategories.map((c) => {
-            const id = `cat-${c.slug}`
-            return (
-              <li key={c.id} className="flex items-start gap-2">
-                <input
-                  id={id}
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  checked={selectedSlugs.includes(c.slug)}
-                  onChange={(e) => toggleCategory(c.slug, e.target.checked)}
-                />
-                <label htmlFor={id} className="flex-1 cursor-pointer text-sm text-slate-800">
-                  {c.name}
-                  <span className="ml-1 text-slate-400">({c.productCount})</span>
-                </label>
-              </li>
-            )
-          })}
-        </ul>
-      </fieldset>
+      {!hideCategories && (
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-slate-900">Category</legend>
+          {isPending && <p className="text-sm text-slate-500">Loading categories…</p>}
+          {isError && <p className="text-sm text-red-600">Could not load categories.</p>}
+          {!isPending && !isError && activeCategories.length === 0 && (
+            <p className="text-sm text-slate-500">No categories.</p>
+          )}
+          <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+            {activeCategories.map((c) => {
+              const id = `cat-${c.slug}`
+              return (
+                <li key={c.id} className="flex items-start gap-2">
+                  <input
+                    id={id}
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={selectedSlugs.includes(c.slug)}
+                    onChange={(e) => toggleCategory(c.slug, e.target.checked)}
+                  />
+                  <label htmlFor={id} className="flex-1 cursor-pointer text-sm text-slate-800">
+                    {c.name}
+                    <span className="ml-1 text-slate-400">({c.productCount})</span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </fieldset>
+      )}
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-medium text-slate-900">Price</legend>

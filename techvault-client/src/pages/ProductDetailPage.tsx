@@ -177,7 +177,7 @@ export function ProductDetailPage() {
           </li>
           <li aria-hidden>/</li>
           <li>
-            <Link to={`/?category=${encodeURIComponent(product.category.slug)}`} className="hover:text-blue-600">
+            <Link to={`/category/${encodeURIComponent(product.category.slug)}`} className="hover:text-blue-600">
               {product.category.name}
             </Link>
           </li>

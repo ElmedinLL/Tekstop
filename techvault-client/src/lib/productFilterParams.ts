@@ -6,6 +6,8 @@ export const ProductFilterKeys = {
   inStockOnly: 'inStockOnly',
   categories: 'categories',
   page: 'page',
+  sort: 'sort',
+  pageSize: 'pageSize',
 } as const
 
 export type ProductFilterKeysType = (typeof ProductFilterKeys)[keyof typeof ProductFilterKeys]
