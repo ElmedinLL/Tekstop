@@ -2,7 +2,6 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TechVault.API.Data;
-using TechVault.API.Models;
 using TechVault.API.Products;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
@@ -47,8 +46,7 @@ public sealed class ProductsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var products = await _productRepository.GetFeaturedAsync(take, cancellationToken);
-        var dtos = _mapper.Map<IReadOnlyList<ProductListDto>>(products);
-        return Ok(dtos);
+        return Ok(_mapper.Map<IReadOnlyList<ProductListDto>>(products));
     }
 
     [HttpGet("category/{slug}")]
@@ -107,10 +105,8 @@ public sealed class ProductsController : ControllerBase
             return ProductSort.NewestFirst;
         }
 
-        // Support case-insensitive enum names from querystring.
         return Enum.TryParse<ProductSort>(sort, ignoreCase: true, out var parsed)
             ? parsed
             : ProductSort.NewestFirst;
     }
 }
-

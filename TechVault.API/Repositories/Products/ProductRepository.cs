@@ -137,7 +137,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         CancellationToken cancellationToken)
     {
         var total = await query.CountAsync(cancellationToken);
-        var sorted = ApplySort(query);
+        var sorted = ApplySort(query, sort);
         var items = await sorted
             .Skip(page.Skip)
             .Take(page.Take)

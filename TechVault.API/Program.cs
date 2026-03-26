@@ -9,6 +9,7 @@ using TechVault.API.Data;
 using TechVault.API.Mapping;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
+using TechVault.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +27,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
+builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
