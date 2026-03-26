@@ -99,6 +99,11 @@ namespace TechVault.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("IdentityUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
@@ -108,14 +113,11 @@ namespace TechVault.API.Data.Migrations
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
-                    b.HasIndex("UserId", "ProductId")
+                    b.HasIndex("IdentityUserId", "ProductId")
                         .IsUnique();
 
                     b.ToTable("CartItems");
@@ -1212,15 +1214,7 @@ namespace TechVault.API.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TechVault.API.Models.User", "User")
-                        .WithMany("CartItems")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Product");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
@@ -1350,8 +1344,6 @@ namespace TechVault.API.Data.Migrations
             modelBuilder.Entity("TechVault.API.Models.User", b =>
                 {
                     b.Navigation("Addresses");
-
-                    b.Navigation("CartItems");
 
                     b.Navigation("Orders");
 

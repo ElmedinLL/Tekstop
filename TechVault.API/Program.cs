@@ -30,6 +30,18 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICartService, CartService>();
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "TechVault.Cart";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.IdleTimeout = TimeSpan.FromDays(14);
+});
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -63,7 +75,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -167,6 +180,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseCors(CorsPolicyName);
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

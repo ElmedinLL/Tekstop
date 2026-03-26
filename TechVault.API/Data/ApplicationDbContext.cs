@@ -60,11 +60,6 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasMany(u => u.CartItems)
-                .WithOne(c => c.User)
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             entity.HasMany(u => u.Orders)
                 .WithOne(o => o.User)
                 .HasForeignKey(o => o.UserId)
@@ -210,12 +205,9 @@ public class ApplicationDbContext : DbContext
     {
         modelBuilder.Entity<CartItem>(entity =>
         {
-            entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
+            entity.HasIndex(e => new { e.IdentityUserId, e.ProductId }).IsUnique();
 
-            entity.HasOne(e => e.User)
-                .WithMany(u => u.CartItems)
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
 
             entity.HasOne(e => e.Product)
                 .WithMany(p => p.CartItems)
