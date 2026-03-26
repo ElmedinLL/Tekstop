@@ -20,6 +20,17 @@ public interface IProductRepository
         PageRequest page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Published products in a category identified by category slug. Optional <paramref name="searchTerm"/> filters like <see cref="SearchAsync"/>.
+    /// </summary>
+    Task<PagedResult<Product>> GetByCategorySlugAsync(
+        string categorySlug,
+        string? searchTerm,
+        ProductListFilter? filter,
+        ProductSort sort,
+        PageRequest page,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<Product>> SearchAsync(
         string searchTerm,
         ProductListFilter? filter,
@@ -30,4 +41,9 @@ public interface IProductRepository
     Task<IReadOnlyList<Product>> GetFeaturedAsync(
         int take = 8,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Soft-deletes a product: marks deleted, clears publish, and rewrites slug/SKU so unique constraints allow reuse.
+    /// </summary>
+    Task<ProductSoftDeleteResult> SoftDeleteAsync(int id, CancellationToken cancellationToken = default);
 }

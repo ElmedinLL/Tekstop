@@ -32,8 +32,25 @@ public sealed class ProductMappingProfile : Profile
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
             .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
 
+        CreateMap<Product, ProductListItemDto>()
+            .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
+            .ForMember(d => d.CategorySlug, o => o.MapFrom(s => s.Category.Slug))
+            .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.StockQuantity));
+
         CreateMap<CreateProductDto, Product>()
             .ForMember(d => d.Category, o => o.Ignore())
+            .ForMember(d => d.Slug, o => o.Ignore())
+            .ForMember(d => d.Name, o => o.MapFrom(s => s.Name.Trim()))
+            .ForMember(d => d.Sku, o => o.MapFrom(s => s.Sku.Trim()))
+            .ForMember(
+                d => d.ShortDescription,
+                o => o.MapFrom(s => string.IsNullOrWhiteSpace(s.ShortDescription) ? null : s.ShortDescription.Trim()))
+            .ForMember(
+                d => d.Description,
+                o => o.MapFrom(s => string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim()))
+            .ForMember(
+                d => d.Brand,
+                o => o.MapFrom(s => string.IsNullOrWhiteSpace(s.Brand) ? null : s.Brand.Trim()))
             .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.Stock))
             .ForMember(d => d.ImagesJson, o => o.MapFrom(s => SerializeImages(s.Images)))
             .ForMember(d => d.SpecsJson, o => o.MapFrom(s => SerializeSpecs(s.Specs)))
@@ -41,6 +58,8 @@ public sealed class ProductMappingProfile : Profile
                 (src, dest) =>
                 {
                     dest.CreatedAtUtc = DateTime.UtcNow;
+                    dest.IsDeleted = false;
+                    dest.DeletedAtUtc = null;
                     if (string.IsNullOrEmpty(dest.ImageUrl) && src.Images.Count > 0)
                     {
                         dest.ImageUrl = src.Images[0];
@@ -49,16 +68,55 @@ public sealed class ProductMappingProfile : Profile
 
         CreateMap<UpdateProductDto, Product>()
             .ForMember(d => d.Category, o => o.Ignore())
-            .ForMember(d => d.Name, o => o.Condition(s => s.Name != null))
-            .ForMember(d => d.Slug, o => o.Condition(s => s.Slug != null))
-            .ForMember(d => d.Sku, o => o.Condition(s => s.Sku != null))
-            .ForMember(d => d.Description, o => o.Condition(s => s.Description != null))
+            .ForMember(d => d.Slug, o => o.Ignore())
+            .ForMember(
+                d => d.Name,
+                o =>
+                {
+                    o.Condition(s => s.Name != null);
+                    o.MapFrom(s => s.Name!.Trim());
+                })
+            .ForMember(
+                d => d.Sku,
+                o =>
+                {
+                    o.Condition(s => s.Sku != null);
+                    o.MapFrom(s => s.Sku!.Trim());
+                })
+            .ForMember(
+                d => d.ShortDescription,
+                o =>
+                {
+                    o.Condition(s => s.ShortDescription != null);
+                    o.MapFrom(s => string.IsNullOrWhiteSpace(s.ShortDescription) ? null : s.ShortDescription.Trim());
+                })
+            .ForMember(
+                d => d.Description,
+                o =>
+                {
+                    o.Condition(s => s.Description != null);
+                    o.MapFrom(s => string.IsNullOrWhiteSpace(s.Description) ? null : s.Description.Trim());
+                })
+            .ForMember(
+                d => d.Brand,
+                o =>
+                {
+                    o.Condition(s => s.Brand != null);
+                    o.MapFrom(s => string.IsNullOrWhiteSpace(s.Brand) ? null : s.Brand!.Trim());
+                })
             .ForMember(
                 d => d.Price,
                 o =>
                 {
                     o.Condition(s => s.Price.HasValue);
                     o.MapFrom(s => s.Price!.Value);
+                })
+            .ForMember(
+                d => d.CompareAtPrice,
+                o =>
+                {
+                    o.Condition(s => s.CompareAtPrice.HasValue);
+                    o.MapFrom(s => s.CompareAtPrice!.Value);
                 })
             .ForMember(
                 d => d.StockQuantity,
@@ -73,6 +131,13 @@ public sealed class ProductMappingProfile : Profile
                 {
                     o.Condition(s => s.CategoryId.HasValue);
                     o.MapFrom(s => s.CategoryId!.Value);
+                })
+            .ForMember(
+                d => d.IsPublished,
+                o =>
+                {
+                    o.Condition(s => s.IsPublished.HasValue);
+                    o.MapFrom(s => s.IsPublished!.Value);
                 })
             .ForMember(
                 d => d.ImagesJson,

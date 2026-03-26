@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using TechVault.API.Data;
 using TechVault.API.Models;
 using TechVault.API.Repositories;
+using TechVault.API.Services;
 
 namespace TechVault.API.Repositories.Products;
 
 public sealed class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
+    private const int MaxSkuLength = 64;
     public async Task<PagedResult<Product>> GetAllAsync(
         ProductListFilter? filter,
         ProductSort sort,
@@ -36,6 +38,26 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
+    public async Task<PagedResult<Product>> GetByCategorySlugAsync(
+        string categorySlug,
+        string? searchTerm,
+        ProductListFilter? filter,
+        ProductSort sort,
+        PageRequest page,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = categorySlug.Trim();
+        if (string.IsNullOrEmpty(slug))
+        {
+            return EmptyPage(page);
+        }
+
+        var query = CoreQuery().Where(p => p.Category.Slug == slug);
+        query = ApplyFilter(query, filter ?? new ProductListFilter());
+        query = ApplySearchTerm(query, searchTerm);
+        return await ToPagedAsync(query, sort, page, cancellationToken);
+    }
+
     public async Task<PagedResult<Product>> SearchAsync(
         string searchTerm,
         ProductListFilter? filter,
@@ -51,11 +73,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
 
         var query = CoreQuery();
         query = ApplyFilter(query, filter ?? new ProductListFilter());
-        query = query.Where(
-            p => p.Name.Contains(term)
-                || p.Sku.Contains(term)
-                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
-                || (p.Brand != null && p.Brand.Contains(term)));
+        query = ApplySearchTerm(query, searchTerm);
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
@@ -69,6 +87,48 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             .OrderByDescending(p => p.CreatedAtUtc)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ProductSoftDeleteResult> SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var product = await context.Products
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (product is null)
+        {
+            return ProductSoftDeleteResult.NotFound;
+        }
+
+        if (product.IsDeleted)
+        {
+            return ProductSoftDeleteResult.AlreadyDeleted;
+        }
+
+        var slugSuffix = $"-del-{product.Id}";
+        product.Slug = ProductSlugHelper.TruncateForSuffix(product.Slug, slugSuffix) + slugSuffix;
+
+        var skuSuffix = $"-DEL-{product.Id}";
+        product.Sku = AppendSkuSuffix(product.Sku, skuSuffix);
+
+        product.IsDeleted = true;
+        product.DeletedAtUtc = DateTime.UtcNow;
+        product.IsPublished = false;
+        product.UpdatedAtUtc = DateTime.UtcNow;
+
+        await context.SaveChangesAsync(cancellationToken);
+        return ProductSoftDeleteResult.Deleted;
+    }
+
+    private static string AppendSkuSuffix(string sku, string suffix)
+    {
+        if (sku.Length + suffix.Length <= MaxSkuLength)
+        {
+            return sku + suffix;
+        }
+
+        var max = MaxSkuLength - suffix.Length;
+        return max <= 0 ? suffix[..MaxSkuLength] : sku[..max] + suffix;
     }
 
     /// <summary>
@@ -116,6 +176,21 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         return query;
+    }
+
+    private static IQueryable<Product> ApplySearchTerm(IQueryable<Product> query, string? searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return query;
+        }
+
+        var term = searchTerm.Trim();
+        return query.Where(
+            p => p.Name.Contains(term)
+                || p.Sku.Contains(term)
+                || (p.ShortDescription != null && p.ShortDescription.Contains(term))
+                || (p.Brand != null && p.Brand.Contains(term)));
     }
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>

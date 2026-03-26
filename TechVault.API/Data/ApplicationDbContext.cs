@@ -122,11 +122,14 @@ public class ApplicationDbContext : DbContext
     {
         modelBuilder.Entity<Product>(entity =>
         {
+            entity.HasQueryFilter(p => !p.IsDeleted);
+
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.HasIndex(e => e.Sku).IsUnique();
             entity.HasIndex(e => e.CategoryId);
             entity.HasIndex(e => new { e.CategoryId, e.IsPublished });
             entity.HasIndex(e => e.Brand);
+            entity.HasIndex(e => e.IsDeleted);
 
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(280);
@@ -138,6 +141,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SpecsJson).HasColumnType("longtext");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
 
             entity.HasMany(p => p.OrderItems)
                 .WithOne(oi => oi.Product)

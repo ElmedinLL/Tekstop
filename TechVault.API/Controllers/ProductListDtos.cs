@@ -1,4 +1,18 @@
-namespace TechVault.API.Controllers;
+namespace TechVault.API.Products;
+
+/// <summary>Filters for category product listing; the category slug is taken from the URL path.</summary>
+public sealed class ProductCategoryPageQueryParameters
+{
+    public string? Search { get; set; }
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+
+    /// <summary>price_asc, price_desc, name_asc, name_desc, newest, oldest, stock_desc</summary>
+    public string? Sort { get; set; }
+
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
 
 public sealed class ProductListQueryParameters
 {

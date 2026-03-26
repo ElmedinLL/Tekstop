@@ -19,6 +19,11 @@ public class Product
     public string? ImageUrl { get; set; }
     public string? Brand { get; set; }
     public bool IsPublished { get; set; }
+
+    /// <summary>When true, the product is hidden from storefront queries (soft delete).</summary>
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
 
