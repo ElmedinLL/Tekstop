@@ -19,7 +19,7 @@ public sealed class ProductMappingProfile : Profile
 
         CreateMap<Product, ProductDto>()
             .ForMember(d => d.Stock, o => o.MapFrom(s => s.StockQuantity))
-            .ForMember(d => d.Images, o => o.MapFrom(s => MergeLegacyImageUrl(s.ImageUrl, DeserializeImages(s.ImagesJson))))
+            .ForMember(d => d.Images, o => o.MapFrom(s => ExtractImages(s)))
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
             .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
 
@@ -28,7 +28,7 @@ public sealed class ProductMappingProfile : Profile
             .ForMember(
                 d => d.Description,
                 o => o.MapFrom(s => s.ShortDescription ?? TruncateForList(s.Description)))
-            .ForMember(d => d.Images, o => o.MapFrom(s => MergeLegacyImageUrl(s.ImageUrl, DeserializeImages(s.ImagesJson))))
+            .ForMember(d => d.Images, o => o.MapFrom(s => ExtractImages(s)))
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
             .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
 
@@ -187,6 +187,24 @@ public sealed class ProductMappingProfile : Profile
 
         // Reserve one char for U+2026 so total length stays within maxLen.
         return description[..(maxLen - 1)] + "…";
+    }
+
+    private static List<string> ExtractImages(Product product)
+    {
+        // Prefer relational images (new storage) when present.
+        if (product.Images is { Count: > 0 })
+        {
+            return product.Images
+                .OrderBy(i => i.SortOrder)
+                .ThenBy(i => i.Id)
+                .Select(i => i.Url)
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+
+        // Fallback to legacy storage (single ImageUrl + ImagesJson array).
+        return MergeLegacyImageUrl(product.ImageUrl, DeserializeImages(product.ImagesJson));
     }
 
     private static List<string> MergeLegacyImageUrl(string? imageUrl, List<string> fromJson)
