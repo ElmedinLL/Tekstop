@@ -12,6 +12,10 @@ public class Product
     public decimal Price { get; set; }
     public decimal? CompareAtPrice { get; set; }
     public int StockQuantity { get; set; }
+    /// <summary>Gallery image URLs stored as JSON array (see also legacy <see cref="ImageUrl"/>).</summary>
+    public string? ImagesJson { get; set; }
+    /// <summary>Key/value technical specs stored as JSON object.</summary>
+    public string? SpecsJson { get; set; }
     public string? ImageUrl { get; set; }
     public string? Brand { get; set; }
     public bool IsPublished { get; set; }
@@ -19,6 +23,7 @@ public class Product
     public DateTime? UpdatedAtUtc { get; set; }
 
     public Category Category { get; set; } = null!;
+    public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductTag> ProductTags { get; set; } = new List<ProductTag>();
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();

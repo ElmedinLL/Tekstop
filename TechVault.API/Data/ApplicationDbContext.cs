@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Address> Addresses => Set<Address>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ProductTag> ProductTags => Set<ProductTag>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
@@ -29,6 +30,7 @@ public class ApplicationDbContext : DbContext
         ConfigureAddress(modelBuilder);
         ConfigureCategory(modelBuilder);
         ConfigureProduct(modelBuilder);
+        ConfigureProductImage(modelBuilder);
         ConfigureTag(modelBuilder);
         ConfigureProductTag(modelBuilder);
         ConfigureCartItem(modelBuilder);
@@ -132,6 +134,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Sku).HasMaxLength(64);
             entity.Property(e => e.Brand).HasMaxLength(120);
             entity.Property(e => e.ImageUrl).HasMaxLength(2048);
+            entity.Property(e => e.ImagesJson).HasColumnType("longtext");
+            entity.Property(e => e.SpecsJson).HasColumnType("longtext");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
 
@@ -154,6 +158,21 @@ public class ApplicationDbContext : DbContext
                 .WithOne(pt => pt.Product)
                 .HasForeignKey(pt => pt.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(p => p.Images)
+                .WithOne(i => i.Product)
+                .HasForeignKey(i => i.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureProductImage(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.HasIndex(e => e.ProductId);
+
+            entity.Property(e => e.Url).HasMaxLength(2048);
         });
     }
 

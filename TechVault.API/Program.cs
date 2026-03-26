@@ -6,7 +6,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
+using TechVault.API.Mapping;
 using TechVault.API.Repositories;
+using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +28,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -49,6 +52,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IdentitySeeder>();
+
+builder.Services.AddAutoMapper(typeof(ProductMappingProfile).Assembly);
 
 const string CorsPolicyName = "Frontend";
 builder.Services.AddCors(options =>
