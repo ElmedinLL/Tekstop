@@ -30,7 +30,6 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICartService, CartService>();
 
 builder.Services.AddDistributedMemoryCache();

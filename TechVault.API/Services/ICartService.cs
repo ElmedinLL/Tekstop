@@ -4,9 +4,13 @@ namespace TechVault.API.Services;
 
 public interface ICartService
 {
-    Task<CartDto> GetAsync(CancellationToken cancellationToken = default);
+    Task<CartDto> GetCart(string userId, CancellationToken cancellationToken = default);
 
-    Task<CartDto> AddAsync(AddToCartDto dto, CancellationToken cancellationToken = default);
+    Task<CartDto> AddItem(string userId, int productId, int qty, CancellationToken cancellationToken = default);
 
-    Task<CartDto> UpdateAsync(UpdateCartDto dto, CancellationToken cancellationToken = default);
+    Task<CartDto> UpdateQty(string userId, int itemId, int qty, CancellationToken cancellationToken = default);
+
+    Task<CartDto> RemoveItem(string userId, int itemId, CancellationToken cancellationToken = default);
+
+    Task<CartDto> ClearCart(string userId, CancellationToken cancellationToken = default);
 }
