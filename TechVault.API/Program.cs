@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.AspNetCore;
+using Serilog.Events;
 using TechVault.API.Auth;
 using TechVault.API.Caching;
 using TechVault.API.Data;
@@ -24,7 +27,46 @@ using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
 using TechVault.API.Validation;
 
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+try
+{
+    Log.Information("Starting TechVault API host");
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    if (context.Configuration.GetSection("Serilog").Exists())
+    {
+        loggerConfiguration.ReadFrom.Configuration(context.Configuration);
+    }
+    else
+    {
+        loggerConfiguration
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .WriteTo.Console(
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+            .WriteTo.File(
+                Path.Combine(context.HostingEnvironment.ContentRootPath, "Logs", "techvault-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: "{Timestamp:o} [{Level:u3}] {SourceContext} {Message:lj} {Properties:j}{NewLine}{Exception}");
+    }
+
+    loggerConfiguration
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "TechVault.API");
+});
 
 // Add services to the container.
 
@@ -287,6 +329,47 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath}{QueryString} -> {StatusCode} in {Elapsed:0.0000} ms";
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set(
+            "QueryString",
+            httpContext.Request.QueryString.HasValue ? httpContext.Request.QueryString.Value : string.Empty);
+        diagnosticContext.Set("ClientIP", ClientIpResolver.Resolve(httpContext));
+        diagnosticContext.Set(
+            "ContentLength",
+            httpContext.Request.ContentLength is { } len ? len : (long?)null);
+    };
+    options.GetLevel = (httpContext, elapsed, ex) =>
+    {
+        var path = httpContext.Request.Path;
+        if (path.StartsWithSegments("/images") || path.StartsWithSegments("/swagger"))
+        {
+            return LogEventLevel.Verbose;
+        }
+
+        if (ex is not null)
+        {
+            return LogEventLevel.Error;
+        }
+
+        if (httpContext.Response.StatusCode >= 500)
+        {
+            return LogEventLevel.Error;
+        }
+
+        if (httpContext.Response.StatusCode >= 400)
+        {
+            return LogEventLevel.Warning;
+        }
+
+        return LogEventLevel.Information;
+    };
+});
+
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
@@ -303,3 +386,13 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}

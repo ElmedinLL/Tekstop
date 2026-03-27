@@ -121,6 +121,11 @@ public sealed class AdminOrderService(
 
         await db.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation(
+            "Order marked shipped: {OrderId} {OrderNumber}",
+            order.Id,
+            order.OrderNumber);
+
         try
         {
             await orderNotificationService.SendOrderShippedAsync(order, cancellationToken);
