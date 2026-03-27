@@ -10,3 +10,7 @@ export async function fetchOrder(orderId: number) {
   const { data } = await api.get<OrderDto>(`/orders/${orderId}`)
   return data
 }
+
+export async function cancelOrder(orderId: number) {
+  await api.post(`/orders/${orderId}/cancel`)
+}
