@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { OrderStatusBadge } from '../components/OrderStatusBadge'
+import { OrderTrackingTimeline } from '../components/OrderTrackingTimeline'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { cancelOrder, fetchOrder } from '../lib/orders'
 import type { OrderDto } from '../types/order'
@@ -25,91 +26,6 @@ function formatPaymentMethod(raw: string | null | undefined) {
 
 function canCancelOrder(status: string) {
   return !['Shipped', 'Delivered', 'Cancelled', 'Refunded'].includes(status)
-}
-
-type TimelineEntry = {
-  id: string
-  title: string
-  date?: string | null
-  detail?: string
-  link?: string | null
-  linkLabel?: string
-}
-
-function buildTimeline(order: OrderDto): TimelineEntry[] {
-  if (order.status === 'Cancelled') {
-    return [
-      { id: 'placed', title: 'Order placed', date: order.placedAtUtc },
-      {
-        id: 'cancelled',
-        title: 'Order cancelled',
-        date: order.cancelledAtUtc,
-        detail: 'This order will not be charged or shipped.',
-      },
-    ]
-  }
-
-  const paymentDate = order.paidAtUtc ?? order.confirmedAtUtc
-  const isAwaitingPayment = order.status === 'PendingPayment'
-
-  const entries: TimelineEntry[] = [{ id: 'placed', title: 'Order placed', date: order.placedAtUtc }]
-
-  entries.push({
-    id: 'payment',
-    title: isAwaitingPayment ? 'Awaiting payment' : 'Payment',
-    date: paymentDate,
-    detail: isAwaitingPayment ? 'Complete payment to confirm your order.' : undefined,
-  })
-
-  entries.push({
-    id: 'processing',
-    title: 'Processing',
-    date: order.processingAtUtc,
-    detail: 'We are preparing your items for shipment.',
-  })
-
-  entries.push({
-    id: 'shipped',
-    title: 'Shipped',
-    date: order.shippedAtUtc,
-    link: order.trackingUrl,
-    linkLabel: 'Tracking link',
-  })
-
-  entries.push({
-    id: 'delivered',
-    title: 'Delivered',
-    date: order.deliveredAtUtc,
-    detail:
-      !order.deliveredAtUtc && order.estimatedDeliveryUtc
-        ? `Estimated delivery by ${formatDate(order.estimatedDeliveryUtc) ?? ''}`.trim()
-        : undefined,
-  })
-
-  if (order.status === 'Refunded') {
-    entries.push({
-      id: 'refunded',
-      title: 'Refunded',
-      detail: 'Payment was returned to your original payment method.',
-    })
-  }
-
-  return entries
-}
-
-function timelineRowState(entry: TimelineEntry, index: number, entries: TimelineEntry[], order: OrderDto) {
-  if (order.status === 'Cancelled') {
-    if (entry.id === 'cancelled') return entry.date ? 'complete' : 'current'
-    return entry.date ? 'complete' : 'upcoming'
-  }
-
-  if (entry.id === 'refunded') return 'complete'
-
-  if (entry.date) return 'complete'
-
-  const firstPendingIdx = entries.findIndex((e) => !e.date && e.id !== 'refunded')
-  if (firstPendingIdx === index) return 'current'
-  return 'upcoming'
 }
 
 function formatAddress(order: OrderDto) {
@@ -206,44 +122,7 @@ export function OrderDetailPage() {
             <OrderStatusBadge status={order.status} className="px-3" />
           </header>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Status</h2>
-            <ol className="relative mt-4 space-y-0 border-l border-slate-200 pl-6">
-              {buildTimeline(order).map((entry, index, entries) => {
-                const state = timelineRowState(entry, index, entries, order)
-                const dot =
-                  state === 'complete'
-                    ? 'bg-emerald-500 ring-emerald-100'
-                    : state === 'current'
-                      ? 'bg-blue-600 ring-blue-100 ring-4'
-                      : 'bg-slate-200 ring-slate-50'
-
-                return (
-                  <li key={entry.id} className="relative pb-8 last:pb-0">
-                    <span
-                      className={`absolute -left-[1.4rem] mt-1.5 h-3 w-3 rounded-full ring-2 ring-white ${dot}`}
-                      aria-hidden
-                    />
-                    <p className="text-sm font-semibold text-slate-900">{entry.title}</p>
-                    {entry.date && (
-                      <p className="mt-0.5 text-sm text-slate-600">{formatDate(entry.date)}</p>
-                    )}
-                    {entry.detail && <p className="mt-1 text-sm text-slate-500">{entry.detail}</p>}
-                    {entry.link && (
-                      <a
-                        href={entry.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline"
-                      >
-                        {entry.linkLabel ?? 'Open link'}
-                      </a>
-                    )}
-                  </li>
-                )
-              })}
-            </ol>
-          </section>
+          <OrderTrackingTimeline order={order} title="Tracking" />
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Items</h2>
