@@ -12,6 +12,7 @@ import { AdminPage } from './pages/AdminPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { CategoryPage } from './pages/CategoryPage'
 import { SearchPage } from './pages/SearchPage'
+import { CartPage } from './pages/CartPage'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/category/:slug" element={<CategoryPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route
             path="/account"
