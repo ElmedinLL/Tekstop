@@ -65,7 +65,8 @@ public sealed class PaymentService(
             Amount = amountCents,
             Currency = currency,
             Metadata = new Dictionary<string, string> { ["orderId"] = orderId.ToString() },
-            AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true }
+            // Card Element + `confirmCardPayment` expects explicit `card` (not automatic payment methods).
+            PaymentMethodTypes = new List<string> { "card" },
         };
 
         var intent = await service.CreateAsync(options, requestOptions: null, cancellationToken);
