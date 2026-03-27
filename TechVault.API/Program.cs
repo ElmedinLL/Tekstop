@@ -42,6 +42,7 @@ builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IProductReviewStatsService, ProductReviewStatsService>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

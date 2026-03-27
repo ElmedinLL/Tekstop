@@ -49,6 +49,8 @@ public sealed class ProductListItemDto
     public string CategorySlug { get; init; } = null!;
     public int StockQuantity { get; init; }
     public bool IsPublished { get; init; }
+    public decimal? AverageRating { get; init; }
+    public int ReviewCount { get; init; }
 }
 
 public sealed class PagedProductsResponse

@@ -30,12 +30,16 @@ public sealed class ProductMappingProfile : Profile
                 o => o.MapFrom(s => s.ShortDescription ?? TruncateForList(s.Description)))
             .ForMember(d => d.Images, o => o.MapFrom(s => ExtractImages(s)))
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
-            .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
+            .ForMember(d => d.Category, o => o.MapFrom(s => s.Category))
+            .ForMember(d => d.AverageRating, o => o.MapFrom(s => s.AverageRating))
+            .ForMember(d => d.ReviewCount, o => o.MapFrom(s => s.ReviewCount));
 
         CreateMap<Product, ProductListItemDto>()
             .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
             .ForMember(d => d.CategorySlug, o => o.MapFrom(s => s.Category.Slug))
-            .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.StockQuantity));
+            .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.StockQuantity))
+            .ForMember(d => d.AverageRating, o => o.MapFrom(s => s.AverageRating))
+            .ForMember(d => d.ReviewCount, o => o.MapFrom(s => s.ReviewCount));
 
         CreateMap<CreateProductDto, Product>()
             .ForMember(d => d.Category, o => o.Ignore())

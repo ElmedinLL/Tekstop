@@ -582,6 +582,14 @@ namespace TechVault.API.Data.Migrations
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<decimal?>("AverageRating")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal(4,2)");
+
+                    b.Property<int>("ReviewCount")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.HasKey("Id");
 
                     b.HasIndex("Brand");
@@ -619,7 +627,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "14\" business ultrabook",
                             Sku = "TV-LAP-001",
                             Slug = "techvault-probook-14",
-                            StockQuantity = 40
+                            StockQuantity = 40,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -635,7 +645,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "16\" creator laptop",
                             Sku = "TV-LAP-002",
                             Slug = "techvault-blade-16",
-                            StockQuantity = 15
+                            StockQuantity = 15,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -652,7 +664,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "13\" lightweight daily driver",
                             Sku = "TV-LAP-003",
                             Slug = "techvault-air-13",
-                            StockQuantity = 60
+                            StockQuantity = 60,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -668,7 +682,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "17\" workstation",
                             Sku = "TV-LAP-004",
                             Slug = "techvault-station-17",
-                            StockQuantity = 10
+                            StockQuantity = 10,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -685,7 +701,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "High-end graphics card",
                             Sku = "TV-GPU-001",
                             Slug = "novagraph-rtx-780",
-                            StockQuantity = 25
+                            StockQuantity = 25,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -701,7 +719,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Desktop CPU unlocked",
                             Sku = "TV-CPU-001",
                             Slug = "corepeak-i9-14900k",
-                            StockQuantity = 30
+                            StockQuantity = 30,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -718,7 +738,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "2x16GB DDR5-6000",
                             Sku = "TV-RAM-001",
                             Slug = "ramburst-ddr5-32gb",
-                            StockQuantity = 100
+                            StockQuantity = 100,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -734,7 +756,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "PCIe Gen4 SSD",
                             Sku = "TV-SSD-001",
                             Slug = "flashforge-nvme-2tb",
-                            StockQuantity = 55
+                            StockQuantity = 55,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -751,7 +775,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "TKL mechanical keyboard",
                             Sku = "TV-KB-001",
                             Slug = "keyforge-mechanical-rgb",
-                            StockQuantity = 80
+                            StockQuantity = 80,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -767,7 +793,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Ergonomic wireless mouse",
                             Sku = "TV-MS-001",
                             Slug = "glideair-wireless-mouse",
-                            StockQuantity = 120
+                            StockQuantity = 120,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -784,7 +812,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "USB gaming headset",
                             Sku = "TV-HS-001",
                             Slug = "soundarc-71-headset",
-                            StockQuantity = 70
+                            StockQuantity = 70,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -800,7 +830,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Auto-focus conference cam",
                             Sku = "TV-WC-001",
                             Slug = "clearview-4k-webcam",
-                            StockQuantity = 45
+                            StockQuantity = 45,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -817,7 +849,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "1080p 144Hz IPS",
                             Sku = "TV-MON-001",
                             Slug = "pixelpro-24-fhd",
-                            StockQuantity = 50
+                            StockQuantity = 50,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -833,7 +867,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "1440p 165Hz IPS",
                             Sku = "TV-MON-002",
                             Slug = "pixelpro-27-qhd",
-                            StockQuantity = 35
+                            StockQuantity = 35,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -850,7 +886,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "4K HDR creator panel",
                             Sku = "TV-MON-003",
                             Slug = "pixelpro-32-4k",
-                            StockQuantity = 20
+                            StockQuantity = 20,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -866,7 +904,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Portable USB-C monitor",
                             Sku = "TV-MON-004",
                             Slug = "travelpanel-15-usbc",
-                            StockQuantity = 40
+                            StockQuantity = 40,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -883,7 +923,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Wi-Fi 6E router",
                             Sku = "TV-NET-001",
                             Slug = "linkhub-ax6000-router",
-                            StockQuantity = 30
+                            StockQuantity = 30,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -899,7 +941,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Gigabit unmanaged switch",
                             Sku = "TV-NET-002",
                             Slug = "linkhub-8port-switch",
-                            StockQuantity = 90
+                            StockQuantity = 90,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -916,7 +960,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "Whole-home mesh Wi-Fi",
                             Sku = "TV-NET-003",
                             Slug = "linkhub-mesh-trio",
-                            StockQuantity = 22
+                            StockQuantity = 22,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         },
                         new
                         {
@@ -932,7 +978,9 @@ namespace TechVault.API.Data.Migrations
                             ShortDescription = "25ft patch cables (5-pack)",
                             Sku = "TV-NET-004",
                             Slug = "cablecraft-cat6-kit",
-                            StockQuantity = 200
+                            StockQuantity = 200,
+                        AverageRating = (decimal?)null,
+                        ReviewCount = 0
                         });
                 });
 

@@ -146,6 +146,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SpecsJson).HasColumnType("longtext");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
+            entity.Property(e => e.AverageRating).HasPrecision(4, 2);
+            entity.Property(e => e.ReviewCount).HasDefaultValue(0);
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
 
             entity.HasMany(p => p.OrderItems)

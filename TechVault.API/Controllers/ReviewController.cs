@@ -15,7 +15,8 @@ namespace TechVault.API.Controllers;
 [Route("api/products/{productId:int}/reviews")]
 public sealed class ReviewController(
     ApplicationDbContext db,
-    IDomainUserService domainUserService) : ControllerBase
+    IDomainUserService domainUserService,
+    IProductReviewStatsService productReviewStatsService) : ControllerBase
 {
     /// <summary>Lists approved reviews for a published product.</summary>
     [HttpGet]
@@ -123,6 +124,8 @@ public sealed class ReviewController(
             return Conflict("You have already reviewed this product.");
         }
 
+        await productReviewStatsService.RecalculateForProductAsync(productId, cancellationToken);
+
         var user = await db.Users.AsNoTracking()
             .Where(u => u.Id == domainUserId)
             .Select(u => new { u.FirstName, u.LastName })
@@ -166,6 +169,7 @@ public sealed class ReviewController(
 
         db.Reviews.Remove(review);
         await db.SaveChangesAsync(cancellationToken);
+        await productReviewStatsService.RecalculateForProductAsync(productId, cancellationToken);
         return NoContent();
     }
 

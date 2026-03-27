@@ -27,6 +27,12 @@ public class Product
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
 
+    /// <summary>Mean of approved review ratings (1–5), or null when there are none.</summary>
+    public decimal? AverageRating { get; set; }
+
+    /// <summary>Number of approved reviews; kept in sync when reviews change.</summary>
+    public int ReviewCount { get; set; }
+
     public Category Category { get; set; } = null!;
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductTag> ProductTags { get; set; } = new List<ProductTag>();
