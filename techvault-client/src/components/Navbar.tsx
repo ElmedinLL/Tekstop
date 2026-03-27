@@ -39,7 +39,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
           </span>
         </button>
         <Link className="text-blue-600 hover:underline" to="/account">
-          Account
+          Profile
         </Link>
         <Link className="text-blue-600 hover:underline" to="/admin">
           Admin

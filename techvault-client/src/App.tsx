@@ -6,7 +6,7 @@ import { CartDrawer } from './components/CartDrawer'
 import { Navbar } from './components/Navbar'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
-import { AccountPage } from './pages/AccountPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminPage } from './pages/AdminPage'
@@ -57,7 +57,7 @@ export default function App() {
             path="/account"
             element={
               <ProtectedRoute>
-                <AccountPage />
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

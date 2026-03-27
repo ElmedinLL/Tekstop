@@ -58,6 +58,10 @@ type AuthContextValue = {
   register: (input: RegisterInput) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<string | null>
+  /** Reloads `/auth/me` (e.g. after profile or avatar update). */
+  refreshUser: () => Promise<void>
+  /** Merges into cached user (e.g. after profile/avatar API without new JWT). */
+  updateLocalUser: (patch: Partial<CurrentUserProfile>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -138,6 +142,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [establishSession],
   )
 
+  const refreshUser = useCallback(async () => {
+    try {
+      if (accessToken) {
+        await fetchMe()
+      }
+    } catch {
+      // ignore; interceptor may sign out on 401
+    }
+  }, [accessToken, fetchMe])
+
+  const updateLocalUser = useCallback((patch: Partial<CurrentUserProfile>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       const rt = refreshTokenRef.current
@@ -189,8 +207,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       register,
       logout,
       refresh,
+      refreshUser,
+      updateLocalUser,
     }),
-    [user, accessToken, isInitializing, login, register, logout, refresh],
+    [user, accessToken, isInitializing, login, register, logout, refresh, refreshUser, updateLocalUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

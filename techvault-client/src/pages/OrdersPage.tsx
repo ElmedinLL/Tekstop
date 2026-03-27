@@ -2,95 +2,31 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { OrderStatusBadge } from '../components/OrderStatusBadge'
-import { api } from '../lib/api'
-
-type OrderItem = {
-  productName: string
-  quantity: number
-}
-
-type OrderSummary = {
-  id: number
-  status: string
-  orderedAtUtc: string
-  totalAmount: number
-  currency: string
-  items: OrderItem[]
-}
-
-const mockOrders: OrderSummary[] = [
-  {
-    id: 41027,
-    status: 'Pending',
-    orderedAtUtc: '2026-03-24T14:15:00Z',
-    totalAmount: 219.98,
-    currency: 'USD',
-    items: [
-      { productName: 'NovaGraph RTX 4060', quantity: 1 },
-      { productName: 'FlashForge 1TB NVMe SSD', quantity: 1 },
-    ],
-  },
-  {
-    id: 41011,
-    status: 'Shipped',
-    orderedAtUtc: '2026-03-20T09:45:00Z',
-    totalAmount: 89.99,
-    currency: 'USD',
-    items: [
-      { productName: 'KeyForge Mechanical Keyboard', quantity: 1 },
-      { productName: 'GlideAir Wireless Mouse', quantity: 1 },
-      { productName: 'CableCraft USB-C Cable', quantity: 2 },
-    ],
-  },
-  {
-    id: 40985,
-    status: 'Delivered',
-    orderedAtUtc: '2026-03-12T18:10:00Z',
-    totalAmount: 149.0,
-    currency: 'USD',
-    items: [{ productName: 'RAMBurst 32GB DDR5 Kit', quantity: 1 }],
-  },
-]
+import { fetchOrderList, type OrderSummary } from '../lib/orders'
 
 const statusOrder = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'] as const
 
-async function fetchOrders(): Promise<OrderSummary[]> {
-  try {
-    const { data } = await api.get<OrderSummary[]>('/orders/my')
-    return data
-  } catch {
-    return mockOrders
-  }
-}
-
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
 }
 
-function buildItemsPreview(items: OrderItem[]) {
-  if (items.length === 0) {
-    return 'No items'
-  }
-
-  const [first, second, ...rest] = items
-  const firstText = `${first.quantity}x ${first.productName}`
-  const secondText = second ? `, ${second.quantity}x ${second.productName}` : ''
-  const restText = rest.length > 0 ? ` +${rest.length} more` : ''
-  return `${firstText}${secondText}${restText}`
+function lineSummary(order: OrderSummary) {
+  const n = order.lineItemCount
+  return `${n} line${n === 1 ? '' : 's'}`
 }
 
 export function OrdersPage() {
   const [activeStatus, setActiveStatus] = useState<(typeof statusOrder)[number]>('All')
-  const { data, isPending } = useQuery({
-    queryKey: ['orders', 'me'],
-    queryFn: fetchOrders,
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['orders', 'me', 1],
+    queryFn: () => fetchOrderList(1),
   })
 
-  const orders = data ?? []
+  const orders = data?.items ?? []
   const availableStatuses = useMemo(() => {
     const found = new Set(orders.map((order) => order.status))
     const fixed = statusOrder.filter((status) => status === 'All' || found.has(status))
@@ -132,13 +68,22 @@ export function OrdersPage() {
       <div className="mt-6 space-y-3">
         {isPending && <p className="text-sm text-slate-500">Loading orders…</p>}
 
-        {!isPending && filteredOrders.length === 0 && (
-          <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">
-            No orders found for this status.
+        {isError && (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            Could not load orders.
           </div>
         )}
 
         {!isPending &&
+          !isError &&
+          filteredOrders.length === 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">
+              No orders found for this status.
+            </div>
+          )}
+
+        {!isPending &&
+          !isError &&
           filteredOrders.map((order) => (
             <Link
               key={order.id}
@@ -147,15 +92,15 @@ export function OrdersPage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">Order #{order.id}</p>
-                  <p className="mt-1 text-sm text-slate-500">{formatDate(order.orderedAtUtc)}</p>
+                  <p className="text-sm font-semibold text-slate-900">{order.orderNumber}</p>
+                  <p className="mt-1 text-sm text-slate-500">{formatDate(order.placedAtUtc)}</p>
                 </div>
                 <OrderStatusBadge status={order.status} />
               </div>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                <p className="min-w-0 truncate text-slate-600">{buildItemsPreview(order.items)}</p>
-                <p className="font-semibold text-slate-900">{formatCurrency(order.totalAmount, order.currency)}</p>
+                <p className="min-w-0 truncate text-slate-600">{lineSummary(order)}</p>
+                <p className="font-semibold text-slate-900">{formatCurrency(order.total)}</p>
               </div>
             </Link>
           ))}
