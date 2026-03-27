@@ -334,6 +334,10 @@ public class ApplicationDbContext : DbContext
     {
         modelBuilder.Entity<Review>(entity =>
         {
+            entity.ToTable(
+                "Reviews",
+                t => t.HasCheckConstraint("CK_Reviews_Rating", "`Rating` >= 1 AND `Rating` <= 5"));
+
             entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
             entity.HasIndex(e => e.ProductId);
 
