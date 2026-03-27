@@ -7,7 +7,8 @@ import { fetchProductReviews } from '../lib/reviews'
 import type { ProductDetail } from '../types/product'
 import toast from 'react-hot-toast'
 import { ProductImageGallery } from '../components/ProductImageGallery'
-import { ReviewForm, StarRatingDisplay } from '../components/ReviewForm'
+import { ReviewForm } from '../components/ReviewForm'
+import { ReviewList } from '../components/ReviewList'
 import { flyToCart } from '../lib/flyToCart'
 import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
 import { useCartStore } from '../store/useCartStore'
@@ -19,10 +20,6 @@ async function fetchProductById(id: number): Promise<ProductDetail> {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
-}
-
-function formatReviewDate(iso: string) {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso))
 }
 
 export function ProductDetailPage() {
@@ -257,24 +254,8 @@ export function ProductDetailPage() {
 
         {!reviewsQuery.isPending && !reviewsQuery.isError && (
           <>
-            {reviewsForList.length > 0 ? (
-              <ul className="mt-8 space-y-6">
-                {reviewsForList.map((r) => (
-                  <li key={r.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <StarRatingDisplay rating={r.rating} />
-                      <span className="text-sm font-medium text-slate-900">{r.authorDisplayName}</span>
-                      <span className="text-xs text-slate-500">{formatReviewDate(r.createdAtUtc)}</span>
-                    </div>
-                    {r.comment ? (
-                      <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{r.comment}</p>
-                    ) : (
-                      <p className="mt-3 text-sm italic text-slate-500">No comment.</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (reviewsQuery.data?.length ?? 0) === 0 && !myReviewStatus.data?.review ? (
+            <ReviewList key={product.id} reviews={reviewsForList} pageSize={8} queryParamKey="reviewPage" className="mt-8" />
+            {(reviewsQuery.data?.length ?? 0) === 0 && !myReviewStatus.data?.review ? (
               <p className="mt-8 text-sm text-slate-600">No reviews yet. Be the first to share your experience.</p>
             ) : null}
           </>

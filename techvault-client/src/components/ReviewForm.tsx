@@ -19,12 +19,13 @@ function StarIcon({ className = '' }: { className?: string }) {
 }
 
 /** Read-only 1–5 stars for review lists and “your review”. */
-export function StarRatingDisplay({ rating }: { rating: number }) {
+export function StarRatingDisplay({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' }) {
   const n = Math.min(5, Math.max(1, Math.round(rating)))
+  const dim = size === 'sm' ? 'h-4 w-4' : 'h-8 w-8'
   return (
     <div className="flex gap-0.5" role="img" aria-label={`${n} out of 5 stars`}>
       {Array.from({ length: 5 }, (_, i) => (
-        <StarIcon key={i} className={i < n ? 'text-amber-400' : 'text-slate-200'} />
+        <StarIcon key={i} className={`${dim} ${i < n ? 'text-amber-400' : 'text-slate-200'}`} />
       ))}
     </div>
   )
