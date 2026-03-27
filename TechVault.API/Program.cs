@@ -1,9 +1,11 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -17,6 +19,7 @@ using TechVault.API.Middleware;
 using TechVault.API.Notifications;
 using TechVault.API.Payments;
 using TechVault.API.Repositories;
+using TechVault.API.RateLimiting;
 using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
 using TechVault.API.Validation;
@@ -153,6 +156,63 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json; charset=utf-8";
+        if (!context.HttpContext.Response.HasStarted)
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ApiErrorResponse
+                {
+                    StatusCode = StatusCodes.Status429TooManyRequests,
+                    Message = "Too many requests. Please try again later.",
+                    Errors = null
+                },
+                cancellationToken: cancellationToken);
+        }
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var path = httpContext.Request.Path;
+        if (!path.StartsWithSegments("/api"))
+        {
+            return RateLimitPartition.GetNoLimiter("non-api");
+        }
+
+        var ip = ClientIpResolver.Resolve(httpContext);
+        var isAuthApi = path.StartsWithSegments("/api/auth");
+        var partitionKey = $"{ip}\u001f{(isAuthApi ? "auth" : "public")}";
+
+        if (isAuthApi)
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey,
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = 30,
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromMinutes(1)
+                });
+        }
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation(options => options.DisableDataAnnotations = true);
 builder.Services.AddValidatorsFromAssemblyContaining<FluentValidationMarker>();
@@ -234,6 +294,8 @@ app.UseStaticFiles();
 app.UseCors(CorsPolicyName);
 
 app.UseSession();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
