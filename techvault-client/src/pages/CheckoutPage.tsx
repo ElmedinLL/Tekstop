@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { validateCoupon } from '../lib/coupon'
+import { createOrder } from '../lib/orders'
 import { fetchAddresses, createAddress } from '../lib/addresses'
 import { useCartStore } from '../store/useCartStore'
 import type { AddressDto } from '../types/address'
@@ -31,6 +32,7 @@ function formatMoney(n: number) {
 }
 
 export function CheckoutPage() {
+  const navigate = useNavigate()
   const location = useLocation()
   const [step, setStep] = useState(1)
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null)
@@ -42,6 +44,11 @@ export function CheckoutPage() {
 
   const serverCart = useCartStore((s) => s.serverCart)
   const fetchCart = useCartStore((s) => s.fetchCart)
+
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod'>('cod')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardName, setCardName] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { data: addresses = [], isLoading: addressesLoading } = useQuery({
     queryKey: ['addresses'],
@@ -414,11 +421,107 @@ export function CheckoutPage() {
       )}
 
       {step === 3 && (
-        <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
-          <p>Payment — next commit.</p>
-          <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
-            Home
-          </Link>
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">Payment</h1>
+          <p className="mt-1 text-sm text-slate-600">Pay securely (demo — card is not charged).</p>
+
+          <fieldset className="mt-6 space-y-3">
+            <legend className="text-sm font-medium text-slate-800">Payment method</legend>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+              <input
+                type="radio"
+                name="pay"
+                checked={paymentMethod === 'card'}
+                onChange={() => setPaymentMethod('card')}
+              />
+              <span className="font-medium text-slate-900">Credit card</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+              <input
+                type="radio"
+                name="pay"
+                checked={paymentMethod === 'cod'}
+                onChange={() => setPaymentMethod('cod')}
+              />
+              <span className="font-medium text-slate-900">Cash on delivery</span>
+            </label>
+          </fieldset>
+
+          {paymentMethod === 'card' && (
+            <div className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mock card</p>
+              <div>
+                <label className="text-xs text-slate-600">Name on card</label>
+                <input
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                  placeholder="Jane Doe"
+                  autoComplete="cc-name"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-600">Card number</label>
+                <input
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  placeholder="4242 4242 4242 4242"
+                  inputMode="numeric"
+                  autoComplete="cc-number"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              onClick={() => setStep(2)}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting || !selectedAddressId || !serverCart?.lines.length}
+              className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              onClick={async () => {
+                if (paymentMethod === 'card') {
+                  const digits = cardNumber.replace(/\s/g, '')
+                  if (digits.length < 12) {
+                    toast.error('Enter a mock card number (12+ digits).')
+                    return
+                  }
+                }
+                if (!selectedAddressId || !serverCart) {
+                  toast.error('Cart or address is missing.')
+                  return
+                }
+                setIsSubmitting(true)
+                try {
+                  const order = await createOrder({
+                    addressId: selectedAddressId,
+                    paymentMethod: paymentMethod === 'card' ? 'card' : 'cod',
+                    couponCode: appliedCode,
+                    shippingMethod,
+                    cartItems: serverCart.lines.map((l) => ({
+                      productId: l.productId,
+                      quantity: l.quantity,
+                    })),
+                  })
+                  await fetchCart()
+                  navigate(`/orders/confirmation/${order.id}`)
+                } catch {
+                  toast.error('Could not place order. Try again.')
+                } finally {
+                  setIsSubmitting(false)
+                }
+              }}
+            >
+              {isSubmitting ? 'Placing order…' : 'Place order'}
+            </button>
+          </div>
         </section>
       )}
     </div>
