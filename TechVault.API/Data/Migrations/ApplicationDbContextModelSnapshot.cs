@@ -333,13 +333,19 @@ namespace TechVault.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("UserId")
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
+
+                    b.HasIndex("IdentityUserId");
 
                     b.HasIndex("PlacedAtUtc");
 
@@ -348,6 +354,8 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("UserId", "Status");
+
+                    b.HasIndex("IdentityUserId", "Status");
 
                     b.ToTable("Orders");
                 });
@@ -1240,8 +1248,7 @@ namespace TechVault.API.Data.Migrations
                     b.HasOne("TechVault.API.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ShippingAddress");
 

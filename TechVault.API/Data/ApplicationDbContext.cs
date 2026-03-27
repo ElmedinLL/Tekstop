@@ -224,6 +224,8 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.IdentityUserId);
+            entity.HasIndex(e => new { e.IdentityUserId, e.Status });
             entity.HasIndex(e => e.PlacedAtUtc);
             entity.HasIndex(e => new { e.UserId, e.Status });
 
@@ -249,11 +251,13 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BillingRegion).HasMaxLength(128);
             entity.Property(e => e.BillingPostalCode).HasMaxLength(32);
             entity.Property(e => e.BillingCountry).HasMaxLength(128);
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
 
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Orders)
                 .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
 
             entity.HasOne(e => e.ShippingAddress)
                 .WithMany()
