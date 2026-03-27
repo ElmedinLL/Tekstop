@@ -271,6 +271,39 @@ public sealed class CartService(
         return await GetDbCartAsync(userId, cancellationToken);
     }
 
+    public async Task<CartDto> MergeGuestLinesAsync(
+        string identityUserId,
+        IReadOnlyList<MergeCartLineDto> lines,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(identityUserId))
+        {
+            throw new ArgumentException("Identity user id is required.", nameof(identityUserId));
+        }
+
+        if (IsGuestUserId(identityUserId))
+        {
+            throw new InvalidOperationException("Merge is only available for authenticated users.");
+        }
+
+        if (lines is null || lines.Count == 0)
+        {
+            return await GetDbCartAsync(identityUserId, cancellationToken);
+        }
+
+        foreach (var line in lines)
+        {
+            if (line.Quantity < 1)
+            {
+                continue;
+            }
+
+            await AddItem(identityUserId, line.ProductId, line.Quantity, cancellationToken);
+        }
+
+        return await GetDbCartAsync(identityUserId, cancellationToken);
+    }
+
     private static bool IsGuestUserId(string userId) =>
         userId.StartsWith(GuestUserIdPrefix, StringComparison.Ordinal);
 

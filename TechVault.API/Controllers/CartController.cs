@@ -88,6 +88,37 @@ public sealed class CartController(ICartService cartService) : ControllerBase
         return Ok(await cartService.ClearCart(userId, cancellationToken));
     }
 
+    [HttpPost("merge")]
+    [Authorize]
+    [ProducesResponseType(typeof(CartDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<CartDto>> Merge(
+        [FromBody] MergeCartDto dto,
+        CancellationToken cancellationToken)
+    {
+        var identityUserId = ResolveIdentityUserId();
+        if (string.IsNullOrEmpty(identityUserId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var lines = dto?.Lines ?? new List<MergeCartLineDto>();
+            return Ok(await cartService.MergeGuestLinesAsync(identityUserId, lines, cancellationToken));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    private string? ResolveIdentityUserId()
+        => User.FindFirstValue("UserId")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
     private async Task<string> ResolveCartUserIdAsync(CancellationToken cancellationToken)
     {
         var id = User.FindFirstValue("UserId")
