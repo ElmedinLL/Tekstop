@@ -16,6 +16,7 @@ import { CategoryPage } from './pages/CategoryPage'
 import { SearchPage } from './pages/SearchPage'
 import { CartPage } from './pages/CartPage'
 import { CheckoutPage } from './pages/CheckoutPage'
+import { OrderConfirmationPage } from './pages/OrderConfirmationPage'
 
 export default function App() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
@@ -37,6 +38,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CheckoutPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/confirmation/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderConfirmationPage />
               </ProtectedRoute>
             }
           />
