@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +38,7 @@ public class ApplicationDbContext : DbContext
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigureReview(modelBuilder);
+        ConfigureCoupon(modelBuilder);
 
         ApplicationDbContextSeed.Apply(modelBuilder);
     }
@@ -47,7 +49,9 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.Role);
+            entity.HasIndex(e => e.IdentityUserId).IsUnique();
 
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.PasswordHash).HasMaxLength(512);
             entity.Property(e => e.FirstName).HasMaxLength(100);
@@ -234,7 +238,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SubTotal).HasPrecision(18, 2);
             entity.Property(e => e.TaxAmount).HasPrecision(18, 2);
             entity.Property(e => e.ShippingAmount).HasPrecision(18, 2);
+            entity.Property(e => e.DiscountAmount).HasPrecision(18, 2);
             entity.Property(e => e.Total).HasPrecision(18, 2);
+            entity.Property(e => e.CouponCode).HasMaxLength(64);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(32);
             entity.Property(e => e.Currency).HasMaxLength(8);
             entity.Property(e => e.ShippingFullName).HasMaxLength(200);
             entity.Property(e => e.ShippingLine1).HasMaxLength(256);
@@ -252,6 +259,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BillingPostalCode).HasMaxLength(32);
             entity.Property(e => e.BillingCountry).HasMaxLength(128);
             entity.Property(e => e.IdentityUserId).HasMaxLength(450);
+
+            entity.Property(e => e.ConfirmedAtUtc).HasColumnType("datetime(6)");
+            entity.Property(e => e.ProcessingAtUtc).HasColumnType("datetime(6)");
+            entity.Property(e => e.CancelledAtUtc).HasColumnType("datetime(6)");
 
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Orders)
@@ -314,6 +325,19 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureCoupon(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Coupon>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+
+            entity.Property(e => e.Code).HasMaxLength(64);
+            entity.Property(e => e.DiscountType).HasConversion<int>();
+            entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
+            entity.Property(e => e.MinOrderValue).HasPrecision(18, 2);
         });
     }
 }

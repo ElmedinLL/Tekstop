@@ -5,6 +5,10 @@ namespace TechVault.API.Models;
 public class User
 {
     public int Id { get; set; }
+
+    /// <summary>ASP.NET Identity user id when this profile was created from login/register.</summary>
+    public string? IdentityUserId { get; set; }
+
     public string Email { get; set; } = null!;
     public string PasswordHash { get; set; } = null!;
     public string FirstName { get; set; } = null!;

@@ -13,4 +13,9 @@ public interface ICartService
     Task<CartDto> RemoveItem(string userId, int itemId, CancellationToken cancellationToken = default);
 
     Task<CartDto> ClearCart(string userId, CancellationToken cancellationToken = default);
+
+    Task<CartDto> MergeGuestLinesAsync(
+        string identityUserId,
+        IReadOnlyList<MergeCartLineDto> lines,
+        CancellationToken cancellationToken = default);
 }

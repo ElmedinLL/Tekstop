@@ -6,18 +6,36 @@ using TechVault.API.Orders;
 
 namespace TechVault.API.Services;
 
-public sealed class OrderService(ApplicationDbContext db) : IOrderService
+public sealed class OrderService(
+    ApplicationDbContext db,
+    IDomainUserService domainUserService,
+    ICouponValidationService couponValidationService) : IOrderService
 {
-    public async Task<OrderDetailDto> CreateAsync(
+    private const decimal StandardShipping = 9.99m;
+    private const decimal ExpressShipping = 19.99m;
+    private const int PageSize = 10;
+
+    public async Task<OrderDto> CreateOrderAsync(
         string identityUserId,
         CreateOrderDto dto,
         CancellationToken cancellationToken = default)
     {
-        ValidateCreateDto(dto);
-
-        if (dto.TaxAmount < 0 || dto.ShippingAmount < 0)
+        if (string.IsNullOrWhiteSpace(identityUserId))
         {
-            throw new InvalidOperationException("Tax and shipping amounts cannot be negative.");
+            throw new ArgumentException("Identity user id is required.", nameof(identityUserId));
+        }
+
+        var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
+
+        var address = await db.Addresses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                a => a.Id == dto.AddressId && a.UserId == domainUserId,
+                cancellationToken);
+
+        if (address is null)
+        {
+            throw new InvalidOperationException("Shipping address was not found.");
         }
 
         var cartItems = await db.CartItems
@@ -30,93 +48,139 @@ public sealed class OrderService(ApplicationDbContext db) : IOrderService
             throw new InvalidOperationException("Your cart is empty.");
         }
 
-        decimal subTotal = 0;
-        foreach (var ci in cartItems)
+        if (!CartMatchesSnapshot(cartItems, dto.CartItems))
         {
-            var p = ci.Product;
-            if (p is null || !p.IsPublished || p.IsDeleted)
+            throw new InvalidOperationException("Cart does not match the server. Refresh and try again.");
+        }
+
+        foreach (var line in cartItems)
+        {
+            if (line.Product is null || !line.Product.IsPublished || line.Product.IsDeleted)
             {
-                throw new InvalidOperationException("One or more products are no longer available.");
+                throw new InvalidOperationException($"Product {line.ProductId} is not available.");
             }
 
-            if (ci.Quantity > p.StockQuantity)
+            var qty = Math.Min(line.Quantity, line.Product.StockQuantity);
+            if (qty < 1 || line.Quantity > line.Product.StockQuantity)
             {
                 throw new InvalidOperationException(
-                    $"Insufficient stock for \"{p.Name}\". Only {p.StockQuantity} available.");
+                    $"Insufficient stock for {line.Product.Name}.");
+            }
+        }
+
+        decimal subTotal = 0;
+        foreach (var line in cartItems)
+        {
+            var p = line.Product!;
+            var qty = Math.Min(line.Quantity, p.StockQuantity);
+            subTotal += p.Price * qty;
+        }
+
+        decimal discountAmount = 0;
+        string? couponCode = null;
+        if (!string.IsNullOrWhiteSpace(dto.CouponCode))
+        {
+            var couponResult = await couponValidationService.ValidateAsync(
+                dto.CouponCode.Trim(),
+                subTotal,
+                cancellationToken);
+
+            if (!couponResult.IsValid)
+            {
+                throw new InvalidOperationException(couponResult.Message);
             }
 
-            subTotal += p.Price * ci.Quantity;
+            discountAmount = couponResult.DiscountAmount;
+            couponCode = couponResult.Code;
         }
 
-        var total = subTotal + dto.TaxAmount + dto.ShippingAmount;
+        var shippingAmount = ResolveShippingAmount(dto.ShippingMethod);
+        var taxAmount = 0m;
+        var total = subTotal - discountAmount + taxAmount + shippingAmount;
         if (total < 0)
         {
-            throw new InvalidOperationException("Order total is invalid.");
+            total = 0;
         }
 
+        var now = DateTime.UtcNow;
+        var orderNumber = await GenerateUniqueOrderNumberAsync(cancellationToken);
+
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             var order = new Order
             {
-                OrderNumber = Guid.NewGuid().ToString("N"),
+                OrderNumber = orderNumber,
+                UserId = domainUserId,
                 IdentityUserId = identityUserId,
-                UserId = null,
-                Status = OrderStatus.PendingPayment,
+                Status = OrderStatus.Confirmed,
                 SubTotal = subTotal,
-                TaxAmount = dto.TaxAmount,
-                ShippingAmount = dto.ShippingAmount,
+                TaxAmount = taxAmount,
+                ShippingAmount = shippingAmount,
+                DiscountAmount = discountAmount,
                 Total = total,
                 Currency = "USD",
-                ShippingAddressId = null,
-                ShippingFullName = dto.ShippingFullName.Trim(),
-                ShippingLine1 = dto.ShippingLine1.Trim(),
-                ShippingLine2 = string.IsNullOrWhiteSpace(dto.ShippingLine2) ? null : dto.ShippingLine2.Trim(),
-                ShippingCity = dto.ShippingCity.Trim(),
-                ShippingRegion = string.IsNullOrWhiteSpace(dto.ShippingRegion) ? null : dto.ShippingRegion.Trim(),
-                ShippingPostalCode = dto.ShippingPostalCode.Trim(),
-                ShippingCountry = dto.ShippingCountry.Trim(),
-                ShippingPhone = string.IsNullOrWhiteSpace(dto.ShippingPhone) ? null : dto.ShippingPhone.Trim(),
-                BillingFullName = dto.BillingFullName.Trim(),
-                BillingLine1 = dto.BillingLine1.Trim(),
-                BillingLine2 = string.IsNullOrWhiteSpace(dto.BillingLine2) ? null : dto.BillingLine2.Trim(),
-                BillingCity = dto.BillingCity.Trim(),
-                BillingRegion = string.IsNullOrWhiteSpace(dto.BillingRegion) ? null : dto.BillingRegion.Trim(),
-                BillingPostalCode = dto.BillingPostalCode.Trim(),
-                BillingCountry = dto.BillingCountry.Trim(),
-                PlacedAtUtc = DateTime.UtcNow
+                CouponCode = couponCode,
+                PaymentMethod = dto.PaymentMethod.Trim(),
+                ShippingAddressId = address.Id,
+                ShippingFullName = address.FullName,
+                ShippingLine1 = address.Line1,
+                ShippingLine2 = address.Line2,
+                ShippingCity = address.City,
+                ShippingRegion = address.Region,
+                ShippingPostalCode = address.PostalCode,
+                ShippingCountry = address.Country,
+                ShippingPhone = address.Phone,
+                BillingFullName = address.FullName,
+                BillingLine1 = address.Line1,
+                BillingLine2 = address.Line2,
+                BillingCity = address.City,
+                BillingRegion = address.Region,
+                BillingPostalCode = address.PostalCode,
+                BillingCountry = address.Country,
+                PlacedAtUtc = now,
+                ConfirmedAtUtc = now,
+                ProcessingAtUtc = now
             };
 
-            foreach (var ci in cartItems)
+            if (string.Equals(dto.PaymentMethod.Trim(), "card", StringComparison.OrdinalIgnoreCase))
             {
-                var p = ci.Product!;
-                var unit = p.Price;
-                var lineTotal = unit * ci.Quantity;
-                order.OrderItems.Add(
-                    new OrderItem
-                    {
-                        ProductId = p.Id,
-                        ProductName = p.Name,
-                        ProductSku = p.Sku,
-                        UnitPrice = unit,
-                        Quantity = ci.Quantity,
-                        LineTotal = lineTotal
-                    });
-                p.StockQuantity -= ci.Quantity;
+                order.PaidAtUtc = now;
             }
 
             db.Orders.Add(order);
+            await db.SaveChangesAsync(cancellationToken);
+
+            foreach (var line in cartItems)
+            {
+                var p = line.Product!;
+                var qty = Math.Min(line.Quantity, p.StockQuantity);
+                var unitPrice = p.Price;
+                var lineTotal = unitPrice * qty;
+
+                db.OrderItems.Add(
+                    new OrderItem
+                    {
+                        OrderId = order.Id,
+                        ProductId = p.Id,
+                        ProductName = p.Name,
+                        ProductSku = p.Sku,
+                        UnitPrice = unitPrice,
+                        Quantity = qty,
+                        LineTotal = lineTotal
+                    });
+
+                var tracked = await db.Products.FirstAsync(x => x.Id == p.Id, cancellationToken);
+                tracked.StockQuantity -= qty;
+            }
+
             db.CartItems.RemoveRange(cartItems);
             await db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
 
-            var detail = await MapDetailAsync(order.Id, identityUserId, cancellationToken);
-            if (detail is null)
-            {
-                throw new InvalidOperationException("Order could not be loaded after creation.");
-            }
-
-            return detail;
+            return await MapOrderDtoAsync(order.Id, identityUserId, cancellationToken)
+                ?? throw new InvalidOperationException("Order could not be loaded.");
         }
         catch
         {
@@ -125,70 +189,89 @@ public sealed class OrderService(ApplicationDbContext db) : IOrderService
         }
     }
 
-    public async Task<IReadOnlyList<OrderListItemDto>> ListAsync(
+    public async Task<OrderListResult> GetOrdersAsync(
         string identityUserId,
+        int page,
         CancellationToken cancellationToken = default)
     {
-        var orders = await db.Orders
+        var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
+        page = Math.Max(1, page);
+        var query = db.Orders
             .AsNoTracking()
-            .Include(o => o.OrderItems)
-            .Where(o => o.IdentityUserId == identityUserId)
-            .OrderByDescending(o => o.PlacedAtUtc)
+            .Where(o => o.UserId == domainUserId)
+            .OrderByDescending(o => o.PlacedAtUtc);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var rows = await query
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                o.Status,
+                o.Total,
+                o.PlacedAtUtc,
+                LineItemCount = o.OrderItems.Count
+            })
             .ToListAsync(cancellationToken);
 
-        return orders
-            .Select(
-                o => new OrderListItemDto
-                {
-                    Id = o.Id,
-                    OrderNumber = o.OrderNumber,
-                    Status = o.Status.ToString(),
-                    PlacedAtUtc = o.PlacedAtUtc,
-                    SubTotal = o.SubTotal,
-                    TaxAmount = o.TaxAmount,
-                    ShippingAmount = o.ShippingAmount,
-                    Total = o.Total,
-                    Currency = o.Currency,
-                    ItemCount = o.OrderItems.Count
-                })
+        var items = rows
+            .Select(o => new OrderSummaryDto
+            {
+                Id = o.Id,
+                OrderNumber = o.OrderNumber,
+                Status = o.Status.ToString(),
+                Total = o.Total,
+                PlacedAtUtc = o.PlacedAtUtc,
+                LineItemCount = o.LineItemCount
+            })
             .ToList();
+
+        return new OrderListResult
+        {
+            Items = items,
+            Page = page,
+            PageSize = PageSize,
+            TotalCount = totalCount
+        };
     }
 
-    public Task<OrderDetailDto?> GetByIdAsync(
-        string identityUserId,
-        int orderId,
-        CancellationToken cancellationToken = default) =>
-        MapDetailAsync(orderId, identityUserId, cancellationToken);
-
-    public async Task<OrderDetailDto?> CancelAsync(
+    public async Task<OrderDto?> GetOrderByIdAsync(
         string identityUserId,
         int orderId,
         CancellationToken cancellationToken = default)
     {
-        var order = await db.Orders
-            .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(
-                o => o.Id == orderId && o.IdentityUserId == identityUserId,
-                cancellationToken);
+        return await MapOrderDtoAsync(orderId, identityUserId, cancellationToken);
+    }
 
-        if (order is null)
-        {
-            return null;
-        }
-
-        if (order.Status == OrderStatus.Cancelled)
-        {
-            throw new InvalidOperationException("Order is already cancelled.");
-        }
-
-        if (order.Status != OrderStatus.PendingPayment && order.Status != OrderStatus.Confirmed)
-        {
-            throw new InvalidOperationException("Only pending or confirmed orders can be cancelled.");
-        }
+    public async Task CancelOrderAsync(
+        string identityUserId,
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            var order = await db.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(
+                    o => o.Id == orderId && o.UserId == domainUserId,
+                    cancellationToken);
+
+            if (order is null)
+            {
+                throw new InvalidOperationException("Order was not found.");
+            }
+
+            if (order.Status is OrderStatus.Shipped or OrderStatus.Delivered or OrderStatus.Cancelled
+                or OrderStatus.Refunded)
+            {
+                throw new InvalidOperationException("This order cannot be cancelled.");
+            }
+
             var productIds = order.OrderItems.Select(i => i.ProductId).Distinct().ToList();
             var products = await db.Products
                 .Where(p => productIds.Contains(p.Id))
@@ -203,10 +286,9 @@ public sealed class OrderService(ApplicationDbContext db) : IOrderService
             }
 
             order.Status = OrderStatus.Cancelled;
+            order.CancelledAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
-
-            return await MapDetailAsync(order.Id, identityUserId, cancellationToken);
         }
         catch
         {
@@ -215,81 +297,107 @@ public sealed class OrderService(ApplicationDbContext db) : IOrderService
         }
     }
 
-    private async Task<OrderDetailDto?> MapDetailAsync(
+    private async Task<OrderDto?> MapOrderDtoAsync(
         int orderId,
         string identityUserId,
         CancellationToken cancellationToken)
     {
+        var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
+
         var order = await db.Orders
             .AsNoTracking()
             .Include(o => o.OrderItems)
-            .Where(o => o.Id == orderId && o.IdentityUserId == identityUserId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(
+                o => o.Id == orderId && o.UserId == domainUserId,
+                cancellationToken);
+
         if (order is null)
         {
             return null;
         }
 
-        return new OrderDetailDto
+        var items = order.OrderItems
+            .Select(oi => new OrderItemDto
+            {
+                ProductId = oi.ProductId,
+                ProductName = oi.ProductName,
+                ProductSku = oi.ProductSku,
+                UnitPrice = oi.UnitPrice,
+                Quantity = oi.Quantity,
+                LineTotal = oi.LineTotal
+            })
+            .ToList();
+
+        var estimated = order.PlacedAtUtc.AddDays(5);
+
+        return new OrderDto
         {
             Id = order.Id,
             OrderNumber = order.OrderNumber,
             Status = order.Status.ToString(),
-            PlacedAtUtc = order.PlacedAtUtc,
-            PaidAtUtc = order.PaidAtUtc,
-            ShippedAtUtc = order.ShippedAtUtc,
-            DeliveredAtUtc = order.DeliveredAtUtc,
             SubTotal = order.SubTotal,
             TaxAmount = order.TaxAmount,
             ShippingAmount = order.ShippingAmount,
+            DiscountAmount = order.DiscountAmount,
             Total = order.Total,
             Currency = order.Currency,
-            ShippingFullName = order.ShippingFullName,
-            ShippingLine1 = order.ShippingLine1,
-            ShippingLine2 = order.ShippingLine2,
-            ShippingCity = order.ShippingCity,
-            ShippingRegion = order.ShippingRegion,
-            ShippingPostalCode = order.ShippingPostalCode,
-            ShippingCountry = order.ShippingCountry,
-            ShippingPhone = order.ShippingPhone,
-            BillingFullName = order.BillingFullName,
-            BillingLine1 = order.BillingLine1,
-            BillingLine2 = order.BillingLine2,
-            BillingCity = order.BillingCity,
-            BillingRegion = order.BillingRegion,
-            BillingPostalCode = order.BillingPostalCode,
-            BillingCountry = order.BillingCountry,
-            Lines = order.OrderItems
-                .OrderBy(i => i.Id)
-                .Select(
-                    i => new OrderLineDto
-                    {
-                        Id = i.Id,
-                        ProductId = i.ProductId,
-                        ProductName = i.ProductName,
-                        ProductSku = i.ProductSku,
-                        UnitPrice = i.UnitPrice,
-                        Quantity = i.Quantity,
-                        LineTotal = i.LineTotal
-                    })
-                .ToList()
+            PaymentMethod = order.PaymentMethod,
+            CouponCode = order.CouponCode,
+            PlacedAtUtc = order.PlacedAtUtc,
+            EstimatedDeliveryUtc = estimated,
+            Items = items
         };
     }
 
-    private static void ValidateCreateDto(CreateOrderDto dto)
+    private static bool CartMatchesSnapshot(
+        IReadOnlyList<CartItem> dbItems,
+        IReadOnlyList<CreateOrderCartItemDto>? snapshot)
     {
-        if (string.IsNullOrWhiteSpace(dto.ShippingFullName)
-            || string.IsNullOrWhiteSpace(dto.ShippingLine1)
-            || string.IsNullOrWhiteSpace(dto.ShippingCity)
-            || string.IsNullOrWhiteSpace(dto.ShippingPostalCode)
-            || string.IsNullOrWhiteSpace(dto.ShippingCountry)
-            || string.IsNullOrWhiteSpace(dto.BillingFullName)
-            || string.IsNullOrWhiteSpace(dto.BillingLine1)
-            || string.IsNullOrWhiteSpace(dto.BillingCity)
-            || string.IsNullOrWhiteSpace(dto.BillingPostalCode)
-            || string.IsNullOrWhiteSpace(dto.BillingCountry))
+        if (snapshot is null || snapshot.Count == 0)
         {
-            throw new InvalidOperationException("Shipping and billing address fields are required.");
+            return true;
         }
+
+        if (dbItems.Count != snapshot.Count)
+        {
+            return false;
+        }
+
+        var a = dbItems
+            .OrderBy(x => x.ProductId)
+            .Select(x => (x.ProductId, x.Quantity))
+            .ToList();
+
+        var b = snapshot
+            .OrderBy(x => x.ProductId)
+            .Select(x => (x.ProductId, x.Quantity))
+            .ToList();
+
+        return a.SequenceEqual(b);
+    }
+
+    private static decimal ResolveShippingAmount(string shippingMethod)
+    {
+        if (string.Equals(shippingMethod, "express", StringComparison.OrdinalIgnoreCase))
+        {
+            return ExpressShipping;
+        }
+
+        return StandardShipping;
+    }
+
+    private async Task<string> GenerateUniqueOrderNumberAsync(CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var candidate = $"TV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8]}";
+            var exists = await db.Orders.AnyAsync(o => o.OrderNumber == candidate, cancellationToken);
+            if (!exists)
+            {
+                return candidate;
+            }
+        }
+
+        return $"TV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}";
     }
 }

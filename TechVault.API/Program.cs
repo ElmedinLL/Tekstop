@@ -32,6 +32,8 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IDomainUserService, DomainUserService>();
+builder.Services.AddScoped<ICouponValidationService, CouponValidationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
 builder.Services.AddScoped<IPaymentService, PaymentService>();
