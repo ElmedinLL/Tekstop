@@ -41,6 +41,7 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSe
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
+builder.Services.AddScoped<IAdminStatsService, AdminStatsService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IProductReviewStatsService, ProductReviewStatsService>();
 
