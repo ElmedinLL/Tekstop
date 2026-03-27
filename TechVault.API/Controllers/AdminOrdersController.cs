@@ -51,6 +51,38 @@ public sealed class AdminOrdersController(IAdminOrderService adminOrderService) 
         return Ok(result);
     }
 
+    /// <summary>Updates order status. Use status Shipped with a tracking URL to trigger the shipped email (same rules as POST …/ship).</summary>
+    [HttpPut("{orderId:int}/status")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateStatus(
+        int orderId,
+        [FromBody] UpdateOrderStatusDto dto,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await adminOrderService.UpdateOrderStatusAsync(orderId, dto, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (ex.Message.Contains("was not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound();
+            }
+
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost("{orderId:int}/ship")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -68,6 +100,11 @@ public sealed class AdminOrdersController(IAdminOrderService adminOrderService) 
         }
         catch (InvalidOperationException ex)
         {
+            if (ex.Message.Contains("was not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound();
+            }
+
             return BadRequest(ex.Message);
         }
     }

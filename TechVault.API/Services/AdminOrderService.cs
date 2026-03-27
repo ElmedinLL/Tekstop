@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TechVault.API.Data;
+using TechVault.API.Models;
 using TechVault.API.Models.Enums;
 using TechVault.API.Orders;
 
@@ -62,6 +63,81 @@ public sealed class AdminOrderService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send order shipped email for order {OrderId}.", order.Id);
+        }
+    }
+
+    public async Task UpdateOrderStatusAsync(int orderId, UpdateOrderStatusDto dto, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<OrderStatus>(dto.Status, ignoreCase: true, out var newStatus))
+        {
+            throw new InvalidOperationException("Invalid status value.");
+        }
+
+        if (newStatus == OrderStatus.PendingPayment)
+        {
+            throw new InvalidOperationException("Cannot set status to PendingPayment.");
+        }
+
+        if (newStatus == OrderStatus.Shipped)
+        {
+            if (string.IsNullOrWhiteSpace(dto.TrackingUrl))
+            {
+                throw new InvalidOperationException("Tracking URL is required when status is Shipped.");
+            }
+
+            await MarkOrderShippedAsync(orderId, dto.TrackingUrl, cancellationToken);
+            return;
+        }
+
+        var order = await db.Orders
+            .Include(o => o.User)
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if (order is null)
+        {
+            throw new KeyNotFoundException("Order was not found.");
+        }
+
+        if (order.Status == newStatus)
+        {
+            return;
+        }
+
+        ApplyAdminStatusChange(order, newStatus);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ApplyAdminStatusChange(Order order, OrderStatus newStatus)
+    {
+        var now = DateTime.UtcNow;
+        order.Status = newStatus;
+        switch (newStatus)
+        {
+            case OrderStatus.Confirmed:
+                order.ConfirmedAtUtc ??= now;
+                break;
+            case OrderStatus.Processing:
+                order.ProcessingAtUtc ??= now;
+                break;
+            case OrderStatus.Paid:
+                order.PaidAtUtc ??= now;
+                break;
+            case OrderStatus.Delivered:
+                order.DeliveredAtUtc ??= now;
+                break;
+            case OrderStatus.Cancelled:
+                order.CancelledAtUtc ??= now;
+                break;
+            case OrderStatus.Refunded:
+                order.CancelledAtUtc ??= now;
+                break;
+            case OrderStatus.Pending:
+            case OrderStatus.Shipped:
+            case OrderStatus.PendingPayment:
+                break;
+            default:
+                break;
         }
     }
 
