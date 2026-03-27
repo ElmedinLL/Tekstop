@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
+import { OrderStatusBadge } from '../components/OrderStatusBadge'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { cancelOrder, fetchOrder } from '../lib/orders'
 import type { OrderDto } from '../types/order'
@@ -24,19 +25,6 @@ function formatPaymentMethod(raw: string | null | undefined) {
 
 function canCancelOrder(status: string) {
   return !['Shipped', 'Delivered', 'Cancelled', 'Refunded'].includes(status)
-}
-
-function statusBadgeClasses(status: string) {
-  const normalized = status.toLowerCase()
-  if (normalized === 'delivered') return 'bg-emerald-100 text-emerald-700'
-  if (normalized === 'shipped') return 'bg-blue-100 text-blue-700'
-  if (normalized === 'processing' || normalized === 'paid' || normalized === 'confirmed') {
-    return 'bg-amber-100 text-amber-800'
-  }
-  if (normalized === 'pendingpayment') return 'bg-violet-100 text-violet-800'
-  if (normalized === 'cancelled') return 'bg-rose-100 text-rose-700'
-  if (normalized === 'refunded') return 'bg-slate-200 text-slate-700'
-  return 'bg-slate-100 text-slate-700'
 }
 
 type TimelineEntry = {
@@ -215,11 +203,7 @@ export function OrderDetailPage() {
                 Placed {formatDate(order.placedAtUtc) ?? '—'}
               </p>
             </div>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClasses(order.status)}`}
-            >
-              {order.status}
-            </span>
+            <OrderStatusBadge status={order.status} className="px-3" />
           </header>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

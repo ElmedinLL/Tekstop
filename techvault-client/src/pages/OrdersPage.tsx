@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { OrderStatusBadge } from '../components/OrderStatusBadge'
 import { api } from '../lib/api'
 
 type OrderItem = {
@@ -82,16 +83,6 @@ function buildItemsPreview(items: OrderItem[]) {
   return `${firstText}${secondText}${restText}`
 }
 
-function badgeClasses(status: string) {
-  const normalized = status.toLowerCase()
-  if (normalized === 'delivered') return 'bg-emerald-100 text-emerald-700'
-  if (normalized === 'shipped') return 'bg-blue-100 text-blue-700'
-  if (normalized === 'processing') return 'bg-amber-100 text-amber-800'
-  if (normalized === 'pending') return 'bg-slate-200 text-slate-700'
-  if (normalized === 'cancelled') return 'bg-rose-100 text-rose-700'
-  return 'bg-slate-100 text-slate-700'
-}
-
 export function OrdersPage() {
   const [activeStatus, setActiveStatus] = useState<(typeof statusOrder)[number]>('All')
   const { data, isPending } = useQuery({
@@ -159,7 +150,7 @@ export function OrdersPage() {
                   <p className="text-sm font-semibold text-slate-900">Order #{order.id}</p>
                   <p className="mt-1 text-sm text-slate-500">{formatDate(order.orderedAtUtc)}</p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClasses(order.status)}`}>{order.status}</span>
+                <OrderStatusBadge status={order.status} />
               </div>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
