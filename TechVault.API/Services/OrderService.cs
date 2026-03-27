@@ -104,6 +104,8 @@ public sealed class OrderService(
 
         var now = DateTime.UtcNow;
         var orderNumber = await GenerateUniqueOrderNumberAsync(cancellationToken);
+        var isCard =
+            string.Equals(dto.PaymentMethod.Trim(), "card", StringComparison.OrdinalIgnoreCase);
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -114,7 +116,7 @@ public sealed class OrderService(
                 OrderNumber = orderNumber,
                 UserId = domainUserId,
                 IdentityUserId = identityUserId,
-                Status = OrderStatus.Confirmed,
+                Status = isCard ? OrderStatus.PendingPayment : OrderStatus.Confirmed,
                 SubTotal = subTotal,
                 TaxAmount = taxAmount,
                 ShippingAmount = shippingAmount,
@@ -140,14 +142,10 @@ public sealed class OrderService(
                 BillingPostalCode = address.PostalCode,
                 BillingCountry = address.Country,
                 PlacedAtUtc = now,
-                ConfirmedAtUtc = now,
-                ProcessingAtUtc = now
+                ConfirmedAtUtc = isCard ? null : now,
+                ProcessingAtUtc = isCard ? null : now,
+                PaidAtUtc = null
             };
-
-            if (string.Equals(dto.PaymentMethod.Trim(), "card", StringComparison.OrdinalIgnoreCase))
-            {
-                order.PaidAtUtc = now;
-            }
 
             db.Orders.Add(order);
             await db.SaveChangesAsync(cancellationToken);

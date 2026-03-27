@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
 
@@ -37,6 +38,7 @@ public class ApplicationDbContext : DbContext
         ConfigureCartItem(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
+        ConfigurePayment(modelBuilder);
         ConfigureReview(modelBuilder);
         ConfigureCoupon(modelBuilder);
 
@@ -279,6 +281,25 @@ public class ApplicationDbContext : DbContext
                 .WithOne(oi => oi.Order)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(o => o.Payments)
+                .WithOne(p => p.Order)
+                .HasForeignKey(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigurePayment(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.ExternalPaymentId).IsUnique();
+
+            entity.Property(e => e.Provider).HasMaxLength(32);
+            entity.Property(e => e.ExternalPaymentId).HasMaxLength(128);
+            entity.Property(e => e.ExternalChargeId).HasMaxLength(128);
+            entity.Property(e => e.Currency).HasMaxLength(8);
         });
     }
 

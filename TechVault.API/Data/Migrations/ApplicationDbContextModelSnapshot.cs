@@ -463,6 +463,52 @@ namespace TechVault.API.Data.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<string>("ExternalChargeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<string>("ExternalPaymentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalPaymentId")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("Payments");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -1340,6 +1386,17 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
                 {
                     b.HasOne("TechVault.API.Models.Category", "Category")
@@ -1399,6 +1456,8 @@ namespace TechVault.API.Data.Migrations
             modelBuilder.Entity("TechVault.API.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Product", b =>

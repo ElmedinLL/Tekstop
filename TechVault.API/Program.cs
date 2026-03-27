@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
 using TechVault.API.Mapping;
+using TechVault.API.Notifications;
 using TechVault.API.Payments;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
@@ -36,6 +37,8 @@ builder.Services.AddScoped<IDomainUserService, DomainUserService>();
 builder.Services.AddScoped<ICouponValidationService, CouponValidationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddDistributedMemoryCache();

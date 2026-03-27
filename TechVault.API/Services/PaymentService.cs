@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Stripe;
 using TechVault.API.Data;
+using TechVault.API.Models;
 using TechVault.API.Models.Enums;
 using TechVault.API.Payments;
 
@@ -9,7 +11,9 @@ namespace TechVault.API.Services;
 
 public sealed class PaymentService(
     ApplicationDbContext db,
-    IOptions<StripeSettings> stripeOptions) : IPaymentService
+    IOptions<StripeSettings> stripeOptions,
+    IOrderNotificationService orderNotificationService,
+    ILogger<PaymentService> logger) : IPaymentService
 {
     private readonly StripeSettings _stripe = stripeOptions.Value;
 
@@ -103,36 +107,82 @@ public sealed class PaymentService(
 
     public async Task HandleWebhookAsync(Event stripeEvent, CancellationToken cancellationToken = default)
     {
-        if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
+        if (stripeEvent.Type != EventTypes.PaymentIntentSucceeded)
         {
-            if (stripeEvent.Data.Object is not PaymentIntent pi)
+            return;
+        }
+
+        if (stripeEvent.Data.Object is not PaymentIntent pi)
+        {
+            return;
+        }
+
+        if (await db.Payments.AnyAsync(p => p.ExternalPaymentId == pi.Id, cancellationToken))
+        {
+            return;
+        }
+
+        if (!pi.Metadata.TryGetValue("orderId", out var orderIdStr)
+            || !int.TryParse(orderIdStr, out var orderId))
+        {
+            return;
+        }
+
+        var order = await db.Orders
+            .Include(o => o.User)
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if (order is null || order.Status != OrderStatus.PendingPayment)
+        {
+            return;
+        }
+
+        var expectedCents = (long)Math.Round(order.Total * 100m, MidpointRounding.AwayFromZero);
+        if (pi.Amount != expectedCents)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        order.Status = OrderStatus.Confirmed;
+        order.ConfirmedAtUtc = now;
+        order.PaidAtUtc = now;
+        order.ProcessingAtUtc ??= now;
+
+        db.Payments.Add(
+            new Payment
             {
-                return;
-            }
+                OrderId = order.Id,
+                Provider = "stripe",
+                ExternalPaymentId = pi.Id,
+                ExternalChargeId = string.IsNullOrEmpty(pi.LatestChargeId) ? null : pi.LatestChargeId,
+                AmountCents = pi.Amount,
+                Currency = string.IsNullOrWhiteSpace(pi.Currency) ? "usd" : pi.Currency,
+                CreatedAtUtc = now
+            });
 
-            if (!pi.Metadata.TryGetValue("orderId", out var orderIdStr)
-                || !int.TryParse(orderIdStr, out var orderId))
-            {
-                return;
-            }
-
-            var order = await db.Orders
-                .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
-
-            if (order is null || order.Status != OrderStatus.PendingPayment)
-            {
-                return;
-            }
-
-            var expectedCents = (long)Math.Round(order.Total * 100m, MidpointRounding.AwayFromZero);
-            if (pi.Amount != expectedCents)
-            {
-                return;
-            }
-
-            order.Status = OrderStatus.Paid;
-            order.PaidAtUtc = DateTime.UtcNow;
+        try
+        {
             await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            if (await db.Payments.AnyAsync(p => p.ExternalPaymentId == pi.Id, cancellationToken))
+            {
+                return;
+            }
+
+            throw;
+        }
+
+        try
+        {
+            await orderNotificationService.SendOrderConfirmationAsync(order, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send order confirmation email for order {OrderId}.", order.Id);
         }
     }
 }
