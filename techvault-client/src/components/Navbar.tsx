@@ -41,7 +41,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
         <Link className="text-blue-600 hover:underline" to="/account">
           Account
         </Link>
-        <Link className="text-blue-600 hover:underline" to="/admin">
+        <Link className="text-blue-600 hover:underline" to="/admin/orders">
           Admin
         </Link>
         {isAuthenticated ? (

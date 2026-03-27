@@ -10,6 +10,8 @@ import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminPage } from './pages/AdminPage'
+import { AdminOrdersPage } from './pages/AdminOrdersPage'
+import { AdminOrderDetailPage } from './pages/AdminOrderDetailPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { CategoryPage } from './pages/CategoryPage'
 import { SearchPage } from './pages/SearchPage'
@@ -64,6 +66,22 @@ export default function App() {
             element={
               <AdminRoute>
                 <AdminPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/orders"
+            element={
+              <AdminRoute>
+                <AdminOrdersPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/orders/:orderId"
+            element={
+              <AdminRoute>
+                <AdminOrderDetailPage />
               </AdminRoute>
             }
           />

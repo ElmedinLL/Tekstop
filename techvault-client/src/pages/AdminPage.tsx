@@ -10,9 +10,17 @@ export function AdminPage() {
       <p className="mt-2 text-slate-600">
         Signed in as {user?.email} ({user?.roles.join(', ') || 'no roles'}).
       </p>
-      <Link className="mt-6 inline-block text-sm font-medium text-blue-600 hover:underline" to="/">
-        Home
-      </Link>
+      <div className="mt-6 flex flex-wrap gap-4">
+        <Link
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+          to="/admin/orders"
+        >
+          Orders
+        </Link>
+        <Link className="text-sm font-medium text-blue-600 hover:underline" to="/">
+          Home
+        </Link>
+      </div>
     </div>
   )
 }
