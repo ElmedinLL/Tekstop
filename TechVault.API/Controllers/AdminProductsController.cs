@@ -61,6 +61,23 @@ public sealed class AdminProductsController(
         });
     }
 
+    /// <summary>Full product for admin edit (includes drafts and unpublished).</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ProductDto>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var product = await productCatalog.GetByIdAsync(id, cancellationToken);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(mapper.Map<ProductDto>(product));
+    }
+
     /// <summary>Products with stock quantity below the configured low-stock threshold (default 10).</summary>
     [HttpGet("low-stock")]
     [ProducesResponseType(typeof(IReadOnlyList<LowStockProductDto>), StatusCodes.Status200OK)]

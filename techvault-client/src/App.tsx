@@ -14,6 +14,7 @@ import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage'
 import { AdminCouponsPage } from './pages/admin/AdminCouponsPage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage'
+import { AdminProductFormPage } from './pages/admin/AdminProductFormPage'
 import { AdminProductsPage } from './pages/admin/AdminProductsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { OrdersPage } from './pages/OrdersPage'
@@ -108,6 +109,8 @@ export default function App() {
           >
             <Route index element={<AdminDashboardPage />} />
             <Route path="products" element={<AdminProductsPage />} />
+            <Route path="products/new" element={<AdminProductFormPage />} />
+            <Route path="products/:productId/edit" element={<AdminProductFormPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />

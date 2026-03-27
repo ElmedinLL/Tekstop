@@ -33,9 +33,13 @@ export type ProductDetail = {
   name: string
   slug: string
   sku: string
+  shortDescription?: string | null
   description: string | null
   price: number
+  compareAtPrice?: number | null
   stock: number
+  brand?: string | null
+  isPublished?: boolean
   images: string[]
   category: ProductCategoryDto
   specs: Record<string, string>

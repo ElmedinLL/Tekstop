@@ -22,6 +22,10 @@ public sealed class ProductMappingProfile : Profile
 
         CreateMap<Product, ProductDto>()
             .ForMember(d => d.Stock, o => o.MapFrom(s => s.StockQuantity))
+            .ForMember(d => d.ShortDescription, o => o.MapFrom(s => s.ShortDescription))
+            .ForMember(d => d.CompareAtPrice, o => o.MapFrom(s => s.CompareAtPrice))
+            .ForMember(d => d.Brand, o => o.MapFrom(s => s.Brand))
+            .ForMember(d => d.IsPublished, o => o.MapFrom(s => s.IsPublished))
             .ForMember(d => d.Images, o => o.MapFrom(s => ExtractImages(s)))
             .ForMember(d => d.Specs, o => o.MapFrom(s => DeserializeSpecs(s.SpecsJson)))
             .ForMember(d => d.Category, o => o.MapFrom(s => s.Category));
