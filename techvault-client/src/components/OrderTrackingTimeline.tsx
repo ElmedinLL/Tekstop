@@ -1,9 +1,9 @@
-import type { OrderDto } from '../types/order'
 import {
   buildOrderTimeline,
   formatOrderTimelineDate,
   getOrderTimelineStepState,
   type OrderTimelineEntry,
+  type OrderTimelineSource,
   type OrderTimelineStepState,
 } from '../lib/orderTimeline'
 
@@ -133,7 +133,7 @@ function stepNodeClasses(entryId: string, state: OrderTimelineStepState) {
 }
 
 type OrderTrackingTimelineProps = {
-  order: OrderDto
+  order: OrderTimelineSource
   title?: string
   className?: string
 }

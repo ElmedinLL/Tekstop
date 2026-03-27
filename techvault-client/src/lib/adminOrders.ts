@@ -28,3 +28,10 @@ export async function fetchAdminOrder(orderId: number) {
 export async function shipAdminOrder(orderId: number, trackingUrl: string) {
   await api.post(`/admin/orders/${orderId}/ship`, { trackingUrl })
 }
+
+export async function updateAdminOrderStatus(
+  orderId: number,
+  body: { status: string; trackingUrl?: string | null },
+) {
+  await api.put(`/admin/orders/${orderId}/status`, body)
+}

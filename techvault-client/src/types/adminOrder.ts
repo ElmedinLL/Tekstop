@@ -32,8 +32,13 @@ export type AdminOrderDetail = {
   paymentMethod?: string | null
   couponCode?: string | null
   placedAtUtc: string
+  confirmedAtUtc?: string | null
+  processingAtUtc?: string | null
+  paidAtUtc?: string | null
   estimatedDeliveryUtc?: string | null
   shippedAtUtc?: string | null
+  deliveredAtUtc?: string | null
+  cancelledAtUtc?: string | null
   trackingUrl?: string | null
   shippingFullName: string
   shippingLine1: string

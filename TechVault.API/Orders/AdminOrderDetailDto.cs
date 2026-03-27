@@ -31,9 +31,19 @@ public sealed class AdminOrderDetailDto
 
     public DateTime PlacedAtUtc { get; set; }
 
+    public DateTime? ConfirmedAtUtc { get; set; }
+
+    public DateTime? ProcessingAtUtc { get; set; }
+
+    public DateTime? PaidAtUtc { get; set; }
+
     public DateTime? EstimatedDeliveryUtc { get; set; }
 
     public DateTime? ShippedAtUtc { get; set; }
+
+    public DateTime? DeliveredAtUtc { get; set; }
+
+    public DateTime? CancelledAtUtc { get; set; }
 
     public string? TrackingUrl { get; set; }
 
