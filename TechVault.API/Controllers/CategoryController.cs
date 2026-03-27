@@ -1,3 +1,5 @@
+using Asp.Versioning.Http;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/categories")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/categories")]
 public sealed class CategoryController(
     IRepository<Category> categoryRepository,
     ICatalogListCache catalogListCache,
@@ -185,7 +188,10 @@ public sealed class CategoryController(
         catalogListCache.InvalidateCatalogLists();
 
         var detail = await LoadCategoryDetailAsync(entity.Id, cancellationToken);
-        return CreatedAtAction(nameof(GetCategoryBySlug), new { slug = entity.Slug }, detail);
+        return CreatedAtAction(
+            nameof(GetCategoryBySlug),
+            new { version = HttpContext.GetRequestedApiVersion()!.ToString(), slug = entity.Slug },
+            detail);
     }
 
     /// <summary>Updates a category by slug (admin).</summary>

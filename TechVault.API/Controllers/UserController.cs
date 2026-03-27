@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,8 @@ using TechVault.API.Users;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/users")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/users")]
 [Authorize]
 public sealed class UserController(
     UserManager<ApplicationUser> userManager,

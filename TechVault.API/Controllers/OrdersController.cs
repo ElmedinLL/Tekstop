@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Http;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Orders;
@@ -8,7 +10,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/orders")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/orders")]
 [Authorize]
 public sealed class OrdersController(IOrderService orderService) : ControllerBase
 {
@@ -29,7 +32,10 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         try
         {
             var order = await orderService.CreateOrderAsync(identityUserId, dto, cancellationToken);
-            return CreatedAtAction(nameof(GetById), new { orderId = order.Id }, order);
+            return CreatedAtAction(
+                nameof(GetById),
+                new { version = HttpContext.GetRequestedApiVersion()!.ToString(), orderId = order.Id },
+                order);
         }
         catch (InvalidOperationException ex)
         {

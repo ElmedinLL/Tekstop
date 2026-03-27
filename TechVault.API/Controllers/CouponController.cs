@@ -1,3 +1,4 @@
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Coupons;
@@ -6,7 +7,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/coupons")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/coupons")]
 public sealed class CouponController(ICouponValidationService couponValidationService) : ControllerBase
 {
     [HttpPost("validate")]

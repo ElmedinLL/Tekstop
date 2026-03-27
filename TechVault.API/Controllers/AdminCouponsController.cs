@@ -1,3 +1,4 @@
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,8 @@ using TechVault.API.Models.Enums;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/admin/coupons")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/admin/coupons")]
 [Authorize(Roles = "Admin")]
 public sealed class AdminCouponsController(ApplicationDbContext db) : ControllerBase
 {

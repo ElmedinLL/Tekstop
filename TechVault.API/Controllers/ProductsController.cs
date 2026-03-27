@@ -1,5 +1,6 @@
 using System.Globalization;
 using AutoMapper;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/products")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/products")]
 public sealed class ProductsController(
     IRepository<Product> productRepository,
     IRepository<Category> categoryRepository,

@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Carts;
@@ -11,7 +12,8 @@ namespace TechVault.API.Controllers;
 /// Shopping cart: anonymous (session + cache) and authenticated (database) flows.
 /// </summary>
 [ApiController]
-[Route("api/cart")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/cart")]
 public sealed class CartController(ICartService cartService) : ControllerBase
 {
     [HttpGet]

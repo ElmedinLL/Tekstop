@@ -1,11 +1,15 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
+using Asp.Versioning.Http;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -25,6 +29,7 @@ using TechVault.API.Repositories;
 using TechVault.API.RateLimiting;
 using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
+using TechVault.API.Swagger;
 using TechVault.API.Validation;
 
 Log.Logger = new LoggerConfiguration()
@@ -198,6 +203,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = false;
+        options.ReportApiVersions = true;
+        options.ApiVersionReader = new UrlSegmentApiVersionReader();
+    })
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
+    });
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -221,13 +239,13 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
         var path = httpContext.Request.Path;
-        if (!path.StartsWithSegments("/api"))
+        if (!VersionedApiRouteParser.IsVersionedApiPath(path))
         {
             return RateLimitPartition.GetNoLimiter("non-api");
         }
 
         var ip = ClientIpResolver.Resolve(httpContext);
-        var isAuthApi = path.StartsWithSegments("/api/auth");
+        var isAuthApi = VersionedApiRouteParser.IsVersionedAuthPath(path);
         var partitionKey = $"{ip}\u001f{(isAuthApi ? "auth" : "public")}";
 
         if (isAuthApi)
@@ -281,9 +299,13 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "TechVault API", Version = "v1" });
+    options.DocInclusionPredicate(
+        static (documentName, apiDescription) =>
+            string.Equals(documentName, apiDescription.GroupName, StringComparison.Ordinal));
+    options.OperationFilter<SwaggerDefaultValues>();
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -324,7 +346,16 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        var descriptions = app.Services.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions;
+        foreach (var description in descriptions)
+        {
+            options.SwaggerEndpoint(
+                $"/swagger/{description.GroupName}/swagger.json",
+                $"{description.GroupName.ToUpperInvariant()}");
+        }
+    });
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
