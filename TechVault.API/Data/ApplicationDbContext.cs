@@ -20,7 +20,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,7 +38,9 @@ public class ApplicationDbContext : DbContext
         ConfigureCartItem(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
+        ConfigurePayment(modelBuilder);
         ConfigureReview(modelBuilder);
+        ConfigureCoupon(modelBuilder);
 
         ApplicationDbContextSeed.Apply(modelBuilder);
     }
@@ -47,7 +51,9 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.Role);
+            entity.HasIndex(e => e.IdentityUserId).IsUnique();
 
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.PasswordHash).HasMaxLength(512);
             entity.Property(e => e.FirstName).HasMaxLength(100);
@@ -58,11 +64,6 @@ public class ApplicationDbContext : DbContext
             entity.HasMany(u => u.Addresses)
                 .WithOne(a => a.User)
                 .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasMany(u => u.CartItems)
-                .WithOne(c => c.User)
-                .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasMany(u => u.Orders)
@@ -130,6 +131,8 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => new { e.CategoryId, e.IsPublished });
             entity.HasIndex(e => e.Brand);
             entity.HasIndex(e => e.IsDeleted);
+
+            entity.HasIndex(e => new { e.Name, e.Description }).IsFullText();
 
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(280);
@@ -210,12 +213,9 @@ public class ApplicationDbContext : DbContext
     {
         modelBuilder.Entity<CartItem>(entity =>
         {
-            entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
+            entity.HasIndex(e => new { e.IdentityUserId, e.ProductId }).IsUnique();
 
-            entity.HasOne(e => e.User)
-                .WithMany(u => u.CartItems)
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
 
             entity.HasOne(e => e.Product)
                 .WithMany(p => p.CartItems)
@@ -230,6 +230,8 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.IdentityUserId);
+            entity.HasIndex(e => new { e.IdentityUserId, e.Status });
             entity.HasIndex(e => e.PlacedAtUtc);
             entity.HasIndex(e => new { e.UserId, e.Status });
 
@@ -238,7 +240,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SubTotal).HasPrecision(18, 2);
             entity.Property(e => e.TaxAmount).HasPrecision(18, 2);
             entity.Property(e => e.ShippingAmount).HasPrecision(18, 2);
+            entity.Property(e => e.DiscountAmount).HasPrecision(18, 2);
             entity.Property(e => e.Total).HasPrecision(18, 2);
+            entity.Property(e => e.CouponCode).HasMaxLength(64);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(32);
+            entity.Property(e => e.TrackingUrl).HasMaxLength(2048);
             entity.Property(e => e.Currency).HasMaxLength(8);
             entity.Property(e => e.ShippingFullName).HasMaxLength(200);
             entity.Property(e => e.ShippingLine1).HasMaxLength(256);
@@ -255,11 +261,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BillingRegion).HasMaxLength(128);
             entity.Property(e => e.BillingPostalCode).HasMaxLength(32);
             entity.Property(e => e.BillingCountry).HasMaxLength(128);
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
+
+            entity.Property(e => e.ConfirmedAtUtc).HasColumnType("datetime(6)");
+            entity.Property(e => e.ProcessingAtUtc).HasColumnType("datetime(6)");
+            entity.Property(e => e.CancelledAtUtc).HasColumnType("datetime(6)");
 
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Orders)
                 .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
 
             entity.HasOne(e => e.ShippingAddress)
                 .WithMany()
@@ -270,6 +282,25 @@ public class ApplicationDbContext : DbContext
                 .WithOne(oi => oi.Order)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(o => o.Payments)
+                .WithOne(p => p.Order)
+                .HasForeignKey(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigurePayment(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.ExternalPaymentId).IsUnique();
+
+            entity.Property(e => e.Provider).HasMaxLength(32);
+            entity.Property(e => e.ExternalPaymentId).HasMaxLength(128);
+            entity.Property(e => e.ExternalChargeId).HasMaxLength(128);
+            entity.Property(e => e.Currency).HasMaxLength(8);
         });
     }
 
@@ -316,6 +347,19 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureCoupon(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Coupon>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+
+            entity.Property(e => e.Code).HasMaxLength(64);
+            entity.Property(e => e.DiscountType).HasConversion<int>();
+            entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
+            entity.Property(e => e.MinOrderValue).HasPrecision(18, 2);
         });
     }
 }

@@ -7,6 +7,9 @@ public sealed class ProductCategoryPageQueryParameters
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
 
+    /// <summary>Repeated spec filters, each <c>Key:Value</c> (e.g. <c>RAM:16GB</c>).</summary>
+    public List<string>? Specs { get; set; }
+
     /// <summary>price_asc, price_desc, name_asc, name_desc, newest, oldest, stock_desc</summary>
     public string? Sort { get; set; }
 
@@ -22,6 +25,9 @@ public sealed class ProductListQueryParameters
     public string? Search { get; set; }
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
+
+    /// <summary>Repeated spec filters, each <c>Key:Value</c> (e.g. <c>RAM:16GB</c>).</summary>
+    public List<string>? Specs { get; set; }
 
     /// <summary>price_asc, price_desc, name_asc, name_desc, newest, oldest</summary>
     public string? Sort { get; set; }

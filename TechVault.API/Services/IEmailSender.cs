@@ -1,0 +1,12 @@
+namespace TechVault.API.Services;
+
+/// <summary>Sends email via SMTP (MailKit).</summary>
+public interface IEmailSender
+{
+    Task SendAsync(
+        string toEmail,
+        string subject,
+        string plainTextBody,
+        string? htmlBody = null,
+        CancellationToken cancellationToken = default);
+}

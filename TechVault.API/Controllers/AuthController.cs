@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using TechVault.API.Data;
 using TechVault.API.Auth;
 using TechVault.API.Models.Enums;
+using TechVault.API.Services;
 
 namespace TechVault.API.Controllers;
 
@@ -17,7 +18,8 @@ public class AuthController(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     IJwtTokenService jwtTokenService,
-    AuthDbContext authDbContext)
+    AuthDbContext authDbContext,
+    IDomainUserService domainUserService)
     : ControllerBase
 {
     [Authorize]
@@ -217,6 +219,8 @@ public class AuthController(
             await authDbContext.SaveChangesAsync();
             await tx.CommitAsync();
 
+            await domainUserService.GetOrCreateDomainUserIdAsync(user.Id);
+
             return Ok(new AuthResponseDto
             {
                 AccessToken = jwt.AccessToken,
@@ -250,6 +254,8 @@ public class AuthController(
         });
 
         await authDbContext.SaveChangesAsync();
+
+        await domainUserService.GetOrCreateDomainUserIdAsync(user.Id);
 
         return new AuthResponseDto
         {

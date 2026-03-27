@@ -99,6 +99,11 @@ namespace TechVault.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("IdentityUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
@@ -108,17 +113,52 @@ namespace TechVault.API.Data.Migrations
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
-                    b.HasIndex("UserId", "ProductId")
+                    b.HasIndex("IdentityUserId", "ProductId")
                         .IsUnique();
 
                     b.ToTable("CartItems");
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.Coupon", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("MinOrderValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Coupons");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
@@ -255,8 +295,22 @@ namespace TechVault.API.Data.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("varchar(8)");
 
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ConfirmedAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime?>("DeliveredAtUtc")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
@@ -266,7 +320,18 @@ namespace TechVault.API.Data.Migrations
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("TrackingUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
+
                     b.Property<DateTime>("PlacedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ProcessingAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("ShippedAtUtc")
@@ -331,13 +396,19 @@ namespace TechVault.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("UserId")
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
+
+                    b.HasIndex("IdentityUserId");
 
                     b.HasIndex("PlacedAtUtc");
 
@@ -346,6 +417,8 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("UserId", "Status");
+
+                    b.HasIndex("IdentityUserId", "Status");
 
                     b.ToTable("Orders");
                 });
@@ -392,6 +465,52 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderItems");
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<string>("ExternalChargeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<string>("ExternalPaymentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalPaymentId")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
@@ -478,6 +597,9 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("CategoryId", "IsPublished");
 
                     b.HasIndex("IsDeleted");
+
+                    b.HasIndex("Name", "Description")
+                        .HasAnnotation("MySql:FullTextIndex", true);
 
                     b.ToTable("Products");
 
@@ -1160,6 +1282,10 @@ namespace TechVault.API.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
@@ -1188,6 +1314,9 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("IdentityUserId")
+                        .IsUnique();
+
                     b.HasIndex("Role");
 
                     b.ToTable("Users");
@@ -1212,15 +1341,7 @@ namespace TechVault.API.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TechVault.API.Models.User", "User")
-                        .WithMany("CartItems")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Product");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
@@ -1243,8 +1364,7 @@ namespace TechVault.API.Data.Migrations
                     b.HasOne("TechVault.API.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ShippingAddress");
 
@@ -1268,6 +1388,17 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
@@ -1329,6 +1460,8 @@ namespace TechVault.API.Data.Migrations
             modelBuilder.Entity("TechVault.API.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
@@ -1350,8 +1483,6 @@ namespace TechVault.API.Data.Migrations
             modelBuilder.Entity("TechVault.API.Models.User", b =>
                 {
                     b.Navigation("Addresses");
-
-                    b.Navigation("CartItems");
 
                     b.Navigation("Orders");
 

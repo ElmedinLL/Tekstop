@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
 using TechVault.API.Mapping;
+using TechVault.API.Notifications;
+using TechVault.API.Payments;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
@@ -30,6 +32,26 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IDomainUserService, DomainUserService>();
+builder.Services.AddScoped<ICouponValidationService, CouponValidationService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
+builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
+builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "TechVault.Cart";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.IdleTimeout = TimeSpan.FromDays(14);
+});
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -63,7 +85,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -164,7 +187,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseCors(CorsPolicyName);
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
