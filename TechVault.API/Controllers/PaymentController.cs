@@ -11,16 +11,16 @@ namespace TechVault.API.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-public sealed class PaymentsController(
+public sealed class PaymentController(
     IPaymentService paymentService,
     IOptions<StripeSettings> stripeOptions) : ControllerBase
 {
     [Authorize]
-    [HttpPost("intent")]
+    [HttpPost("create-intent")]
     [ProducesResponseType(typeof(PaymentIntentCreateResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<PaymentIntentCreateResult>> CreatePaymentIntent(
+    public async Task<ActionResult<PaymentIntentCreateResult>> CreateIntent(
         [FromBody] CreatePaymentIntentRequestDto dto,
         CancellationToken cancellationToken)
     {
@@ -50,7 +50,7 @@ public sealed class PaymentsController(
     [ProducesResponseType(typeof(PaymentIntent), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<PaymentIntent>> ConfirmPayment(
+    public async Task<ActionResult<PaymentIntent>> Confirm(
         [FromBody] ConfirmPaymentRequestDto dto,
         CancellationToken cancellationToken)
     {
