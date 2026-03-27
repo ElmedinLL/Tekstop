@@ -1,11 +1,15 @@
 using System.Text;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
+using TechVault.API.Errors;
 using TechVault.API.Inventory;
 using TechVault.API.Mapping;
 using TechVault.API.Middleware;
@@ -14,6 +18,7 @@ using TechVault.API.Payments;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
+using TechVault.API.Validation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -146,6 +151,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation(options => options.DisableDataAnnotations = true);
+builder.Services.AddValidatorsFromAssemblyContaining<FluentValidationMarker>();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(kvp => kvp.Value is { Errors.Count: > 0 })
+            .ToDictionary(
+                static kvp => kvp.Key,
+                static kvp => kvp.Value!.Errors
+                    .Select(static e => string.IsNullOrEmpty(e.ErrorMessage) ? "The value is invalid." : e.ErrorMessage)
+                    .ToArray());
+
+        var body = new ApiErrorResponse
+        {
+            StatusCode = StatusCodes.Status400BadRequest,
+            Message = "One or more validation errors occurred.",
+            Errors = errors
+        };
+
+        return new BadRequestObjectResult(body);
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

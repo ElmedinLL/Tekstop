@@ -3,6 +3,10 @@ namespace TechVault.API.Products;
 public sealed class CreateProductDto
 {
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// URL segment source (normalized server-side). When null, empty, or whitespace, the slug is derived from <see cref="Name"/> (see <c>AdminProductService.CreateAsync</c>).
+    /// </summary>
     public string Slug { get; set; } = null!;
     public string Sku { get; set; } = null!;
     public string? ShortDescription { get; set; }

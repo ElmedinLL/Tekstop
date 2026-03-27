@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using TechVault.API.Models.Enums;
 
 namespace TechVault.API.Coupons;
@@ -26,8 +25,6 @@ public sealed class AdminCouponDto
 
 public class CreateAdminCouponDto
 {
-    [Required]
-    [MaxLength(64)]
     public string Code { get; set; } = null!;
 
     public DiscountType DiscountType { get; set; }
