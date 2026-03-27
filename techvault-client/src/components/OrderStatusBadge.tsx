@@ -14,6 +14,7 @@ function badgeClasses(status: string) {
     case 'delivered':
       return 'bg-emerald-100 text-emerald-800'
     case 'cancelled':
+    case 'refunded':
       return 'bg-red-100 text-red-800'
     case 'processing':
       return 'bg-amber-100 text-amber-800'
