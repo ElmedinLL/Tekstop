@@ -3,8 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { isAxiosError } from 'axios'
-import toast from 'react-hot-toast'
+import {
+  messageFromUnknownError,
+  notifyWishlistActionError,
+  notifyWishlistItemRemoved,
+  toast,
+} from '../lib/notifications'
 import { z } from 'zod'
 import { useAuth } from '../auth/AuthContext'
 import { OrderStatusBadge } from '../components/OrderStatusBadge'
@@ -150,7 +154,7 @@ function PersonalTab() {
       toast.success('Profile saved.')
     },
     onError: (e) => {
-      toast.error(isAxiosError(e) ? String(e.response?.data ?? e.message) : 'Could not save profile.')
+      toast.error(messageFromUnknownError(e, 'Could not save profile.'))
     },
   })
 
@@ -163,7 +167,7 @@ function PersonalTab() {
       toast.success('Photo updated.')
     },
     onError: (e) => {
-      toast.error(isAxiosError(e) ? String(e.response?.data ?? e.message) : 'Upload failed.')
+      toast.error(messageFromUnknownError(e, 'Upload failed.'))
     },
   })
 
@@ -341,9 +345,9 @@ function WishlistTab() {
     mutationFn: removeFromWishlist,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['wishlist'] })
-      toast.success('Removed from wishlist.')
+      notifyWishlistItemRemoved()
     },
-    onError: () => toast.error('Could not remove item.'),
+    onError: () => notifyWishlistActionError('Could not remove item.'),
   })
 
   const items = data ?? []
@@ -411,7 +415,7 @@ function PasswordTab() {
       form.reset()
     },
     onError: (e) => {
-      toast.error(isAxiosError(e) ? String(e.response?.data ?? e.message) : 'Could not update password.')
+      toast.error(messageFromUnknownError(e, 'Could not update password.'))
     },
   })
 

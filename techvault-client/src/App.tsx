@@ -16,6 +16,7 @@ import { ProductDetailPage } from './pages/ProductDetailPage'
 import { CategoryPage } from './pages/CategoryPage'
 import { SearchPage } from './pages/SearchPage'
 import { CartPage } from './pages/CartPage'
+import { WishlistPage } from './pages/WishlistPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { OrderConfirmationPage } from './pages/OrderConfirmationPage'
 import { useCartStore } from './store/useCartStore'
@@ -58,6 +59,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <WishlistPage />
               </ProtectedRoute>
             }
           />
