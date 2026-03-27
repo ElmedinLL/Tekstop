@@ -56,6 +56,59 @@ public sealed class ReviewController(
         return Ok(list);
     }
 
+    /// <summary>
+    /// Returns whether the current user has purchased this product (non-cancelled / non-refunded order)
+    /// and their review row if they submitted one (including pending approval).
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(MyReviewStatusDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MyReviewStatusDto>> GetMyStatus(int productId, CancellationToken cancellationToken)
+    {
+        var identityUserId = ResolveIdentityUserId();
+        if (string.IsNullOrEmpty(identityUserId))
+        {
+            return Unauthorized();
+        }
+
+        var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
+
+        var productExists = await db.Products
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == productId && p.IsPublished, cancellationToken);
+
+        if (!productExists)
+        {
+            return NotFound();
+        }
+
+        var purchased = await UserHasPurchasedProductAsync(domainUserId, productId, cancellationToken);
+
+        var reviewRow = await (
+            from r in db.Reviews.AsNoTracking()
+            join u in db.Users.AsNoTracking() on r.UserId equals u.Id
+            where r.UserId == domainUserId && r.ProductId == productId
+            select new { r.Id, r.Rating, r.Comment, r.CreatedAtUtc, u.FirstName, u.LastName }
+        ).FirstOrDefaultAsync(cancellationToken);
+
+        ProductReviewDto? review = null;
+        if (reviewRow != null)
+        {
+            review = new ProductReviewDto
+            {
+                Id = reviewRow.Id,
+                Rating = reviewRow.Rating,
+                Comment = reviewRow.Comment,
+                CreatedAtUtc = reviewRow.CreatedAtUtc,
+                AuthorDisplayName = FormatAuthorDisplayName(reviewRow.FirstName, reviewRow.LastName)
+            };
+        }
+
+        return Ok(new MyReviewStatusDto { Purchased = purchased, Review = review });
+    }
+
     /// <summary>Adds a review if the current user bought this product in a non-cancelled order.</summary>
     [HttpPost]
     [Authorize]

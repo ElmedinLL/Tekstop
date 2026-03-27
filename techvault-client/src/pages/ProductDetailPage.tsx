@@ -3,10 +3,13 @@ import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { api } from '../lib/api'
+import { fetchProductReviews } from '../lib/reviews'
 import type { ProductDetail } from '../types/product'
 import toast from 'react-hot-toast'
 import { ProductImageGallery } from '../components/ProductImageGallery'
+import { ReviewForm, StarRatingDisplay } from '../components/ReviewForm'
 import { flyToCart } from '../lib/flyToCart'
+import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
 import { useCartStore } from '../store/useCartStore'
 
 async function fetchProductById(id: number): Promise<ProductDetail> {
@@ -16,6 +19,10 @@ async function fetchProductById(id: number): Promise<ProductDetail> {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
+}
+
+function formatReviewDate(iso: string) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso))
 }
 
 export function ProductDetailPage() {
@@ -33,6 +40,23 @@ export function ProductDetailPage() {
     queryFn: () => fetchProductById(id),
     enabled: validId,
   })
+
+  const reviewsQuery = useQuery({
+    queryKey: ['product', id, 'reviews'],
+    queryFn: () => fetchProductReviews(id),
+    enabled: validId && !!product,
+  })
+
+  const myReviewStatus = useProductReviewStatus(id)
+
+  const reviewsForList = useMemo(() => {
+    const rows = reviewsQuery.data ?? []
+    const mineId = myReviewStatus.data?.review?.id
+    if (mineId == null) {
+      return rows
+    }
+    return rows.filter((r) => r.id !== mineId)
+  }, [reviewsQuery.data, myReviewStatus.data?.review?.id])
 
   const [quantity, setQuantity] = useState(1)
   const addToCartBtnRef = useRef<HTMLButtonElement>(null)
@@ -216,13 +240,45 @@ export function ProductDetailPage() {
         <h2 id="reviews-heading" className="text-lg font-semibold text-slate-900">
           Customer reviews
         </h2>
-        <p className="mt-4 text-slate-600">
-          There are no reviews yet. When review submission is available, ratings and comments will appear here.
-        </p>
-        <div className="mt-8 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center text-sm text-slate-500">
-          <p className="font-medium text-slate-700">Be the first to review this product</p>
-          <p className="mt-2">Review posting will be enabled in a future update.</p>
+
+        <div className="mt-8 max-w-xl">
+          <ReviewForm productId={product.id} />
         </div>
+
+        {reviewsQuery.isPending && (
+          <p className="mt-8 text-sm text-slate-500" role="status">
+            Loading reviews…
+          </p>
+        )}
+
+        {reviewsQuery.isError && (
+          <p className="mt-8 text-sm text-rose-600">Could not load reviews.</p>
+        )}
+
+        {!reviewsQuery.isPending && !reviewsQuery.isError && (
+          <>
+            {reviewsForList.length > 0 ? (
+              <ul className="mt-8 space-y-6">
+                {reviewsForList.map((r) => (
+                  <li key={r.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <StarRatingDisplay rating={r.rating} />
+                      <span className="text-sm font-medium text-slate-900">{r.authorDisplayName}</span>
+                      <span className="text-xs text-slate-500">{formatReviewDate(r.createdAtUtc)}</span>
+                    </div>
+                    {r.comment ? (
+                      <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{r.comment}</p>
+                    ) : (
+                      <p className="mt-3 text-sm italic text-slate-500">No comment.</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (reviewsQuery.data?.length ?? 0) === 0 && !myReviewStatus.data?.review ? (
+              <p className="mt-8 text-sm text-slate-600">No reviews yet. Be the first to share your experience.</p>
+            ) : null}
+          </>
+        )}
       </section>
     </div>
   )
