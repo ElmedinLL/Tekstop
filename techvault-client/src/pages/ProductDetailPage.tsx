@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { api } from '../lib/api'
 import type { ProductDetail } from '../types/product'
+import toast from 'react-hot-toast'
 import { ProductImageGallery } from '../components/ProductImageGallery'
+import { flyToCart } from '../lib/flyToCart'
+import { useCartStore } from '../store/useCartStore'
 
 async function fetchProductById(id: number): Promise<ProductDetail> {
   const { data } = await api.get<ProductDetail>(`/products/${id}`)
@@ -32,6 +35,9 @@ export function ProductDetailPage() {
   })
 
   const [quantity, setQuantity] = useState(1)
+  const addToCartBtnRef = useRef<HTMLButtonElement>(null)
+  const addItem = useCartStore((s) => s.addItem)
+  const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   useEffect(() => {
     setQuantity(1)
@@ -99,12 +105,18 @@ export function ProductDetailPage() {
     return null
   }
 
-  const handleAddToCart = () => {
-    if (!inStock) {
+  const handleAddToCart = async () => {
+    if (!inStock || !product) {
       return
     }
-    // Wire to cart context / API when available
-    console.info('Add to cart', { productId: product.id, quantity })
+    try {
+      await addItem(product.id, quantity)
+      flyToCart(addToCartBtnRef.current)
+      setCartDrawerOpen(true)
+      toast.success('Added to cart')
+    } catch {
+      toast.error('Could not add to cart')
+    }
   }
 
   return (
@@ -186,9 +198,10 @@ export function ProductDetailPage() {
               />
             </div>
             <button
+              ref={addToCartBtnRef}
               type="button"
               disabled={!inStock}
-              onClick={handleAddToCart}
+              onClick={() => void handleAddToCart()}
               className={`rounded-lg px-6 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                 inStock ? 'bg-blue-600 text-white hover:bg-blue-700' : 'cursor-not-allowed bg-slate-200 text-slate-500'
               }`}

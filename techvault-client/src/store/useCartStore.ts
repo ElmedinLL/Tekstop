@@ -4,6 +4,8 @@ import { api } from '../lib/api'
 import type { CartDto, GuestCartLine } from '../types/cart'
 
 type CartStore = {
+  cartDrawerOpen: boolean
+  setCartDrawerOpen: (open: boolean) => void
   serverCart: CartDto | null
   /** Persisted guest lines used for merge after login. */
   guestLinesSnapshot: GuestCartLine[]
@@ -26,6 +28,8 @@ function linesFromCart(cart: CartDto): GuestCartLine[] {
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
+      cartDrawerOpen: false,
+      setCartDrawerOpen: (open) => set({ cartDrawerOpen: open }),
       serverCart: null,
       guestLinesSnapshot: [],
       badgeBump: 0,

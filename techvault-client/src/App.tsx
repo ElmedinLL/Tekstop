@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AdminRoute } from './auth/AdminRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
@@ -17,9 +16,11 @@ import { SearchPage } from './pages/SearchPage'
 import { CartPage } from './pages/CartPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { OrderConfirmationPage } from './pages/OrderConfirmationPage'
+import { useCartStore } from './store/useCartStore'
 
 export default function App() {
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
+  const cartDrawerOpen = useCartStore((s) => s.cartDrawerOpen)
+  const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
