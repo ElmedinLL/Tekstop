@@ -61,3 +61,17 @@ public sealed class PagedProductsResponse
     public int PageSize { get; init; }
     public int TotalPages { get; init; }
 }
+
+/// <summary>Admin catalog list: includes unpublished products; deleted rows remain excluded by EF filters.</summary>
+public sealed class AdminProductListQueryParameters
+{
+    public string? Search { get; set; }
+
+    /// <summary>
+    /// newest, oldest, name_asc, name_desc, price_asc, price_desc, stock_asc, stock_desc, category_asc, category_desc.
+    /// </summary>
+    public string? Sort { get; set; }
+
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
