@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
+using TechVault.API.Caching;
 using TechVault.API.Data;
 using TechVault.API.Errors;
 using TechVault.API.Inventory;
@@ -56,6 +57,8 @@ builder.Services.Configure<InventorySettings>(builder.Configuration.GetSection(I
 builder.Services.AddScoped<ILowStockInventoryService, LowStockInventoryService>();
 builder.Services.AddHostedService<LowStockInventoryMonitorHostedService>();
 
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ICatalogListCache, CatalogListCache>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

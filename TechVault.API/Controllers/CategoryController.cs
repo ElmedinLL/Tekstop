@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TechVault.API.Caching;
 using TechVault.API.Categories;
 using TechVault.API.Models;
 using TechVault.API.Repositories;
@@ -12,6 +13,7 @@ namespace TechVault.API.Controllers;
 [Route("api/categories")]
 public sealed class CategoryController(
     IRepository<Category> categoryRepository,
+    ICatalogListCache catalogListCache,
     IWebHostEnvironment webHostEnvironment) : ControllerBase
 {
     private const int MaxCategorySlugLength = 180;
@@ -26,6 +28,12 @@ public sealed class CategoryController(
     [ProducesResponseType(typeof(IReadOnlyList<CategoryListItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<CategoryListItemDto>>> GetCategories(CancellationToken cancellationToken)
     {
+        var cacheKey = catalogListCache.CreateCategoryListKey();
+        if (catalogListCache.TryGetCategoryList(cacheKey, out var cached) && cached is not null)
+        {
+            return Ok(cached);
+        }
+
         var items = await categoryRepository.QueryAsNoTracking()
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
@@ -43,6 +51,7 @@ public sealed class CategoryController(
             })
             .ToListAsync(cancellationToken);
 
+        catalogListCache.SetCategoryList(cacheKey, items);
         return Ok(items);
     }
 
@@ -173,6 +182,8 @@ public sealed class CategoryController(
             return Conflict("Could not save the category (slug may be in use).");
         }
 
+        catalogListCache.InvalidateCatalogLists();
+
         var detail = await LoadCategoryDetailAsync(entity.Id, cancellationToken);
         return CreatedAtAction(nameof(GetCategoryBySlug), new { slug = entity.Slug }, detail);
     }
@@ -241,6 +252,8 @@ public sealed class CategoryController(
             return Conflict("Could not save the category (slug may be in use).");
         }
 
+        catalogListCache.InvalidateCatalogLists();
+
         var detail = await LoadCategoryDetailAsync(entity.Id, cancellationToken);
         return Ok(detail);
     }
@@ -288,6 +301,8 @@ public sealed class CategoryController(
         {
             return Conflict("Cannot delete this category (it may be referenced elsewhere).");
         }
+
+        catalogListCache.InvalidateCatalogLists();
 
         return NoContent();
     }
