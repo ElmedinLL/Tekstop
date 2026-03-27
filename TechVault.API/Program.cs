@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
 using TechVault.API.Mapping;
+using TechVault.API.Payments;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
 using TechVault.API.Services;
@@ -32,6 +33,8 @@ builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
