@@ -324,6 +324,10 @@ namespace TechVault.API.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)");
 
+                    b.Property<string>("TrackingUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
+
                     b.Property<DateTime>("PlacedAtUtc")
                         .HasColumnType("datetime(6)");
 

@@ -244,6 +244,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Total).HasPrecision(18, 2);
             entity.Property(e => e.CouponCode).HasMaxLength(64);
             entity.Property(e => e.PaymentMethod).HasMaxLength(32);
+            entity.Property(e => e.TrackingUrl).HasMaxLength(2048);
             entity.Property(e => e.Currency).HasMaxLength(8);
             entity.Property(e => e.ShippingFullName).HasMaxLength(200);
             entity.Property(e => e.ShippingLine1).HasMaxLength(256);

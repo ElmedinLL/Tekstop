@@ -38,7 +38,9 @@ builder.Services.AddScoped<ICouponValidationService, CouponValidationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
+builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddDistributedMemoryCache();

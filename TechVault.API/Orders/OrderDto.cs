@@ -28,5 +28,10 @@ public sealed class OrderDto
 
     public DateTime? EstimatedDeliveryUtc { get; set; }
 
+    public DateTime? ShippedAtUtc { get; set; }
+
+    /// <summary>Carrier tracking link when the order has shipped.</summary>
+    public string? TrackingUrl { get; set; }
+
     public IReadOnlyList<OrderItemDto> Items { get; set; } = Array.Empty<OrderItemDto>();
 }

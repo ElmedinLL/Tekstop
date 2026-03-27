@@ -20,6 +20,9 @@ public class Order
     public string? CouponCode { get; set; }
     public string? PaymentMethod { get; set; }
 
+    /// <summary>Carrier or merchant tracking page URL (set when order is marked shipped).</summary>
+    public string? TrackingUrl { get; set; }
+
     public int? ShippingAddressId { get; set; }
     public string ShippingFullName { get; set; } = null!;
     public string ShippingLine1 { get; set; } = null!;

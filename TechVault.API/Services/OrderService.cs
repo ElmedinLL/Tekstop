@@ -343,6 +343,8 @@ public sealed class OrderService(
             CouponCode = order.CouponCode,
             PlacedAtUtc = order.PlacedAtUtc,
             EstimatedDeliveryUtc = estimated,
+            ShippedAtUtc = order.ShippedAtUtc,
+            TrackingUrl = order.TrackingUrl,
             Items = items
         };
     }
