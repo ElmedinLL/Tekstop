@@ -10,9 +10,16 @@ namespace TechVault.API.Controllers;
 
 [ApiController]
 [Route("api/categories")]
-public sealed class CategoryController(IRepository<Category> categoryRepository) : ControllerBase
+public sealed class CategoryController(
+    IRepository<Category> categoryRepository,
+    IWebHostEnvironment webHostEnvironment) : ControllerBase
 {
     private const int MaxCategorySlugLength = 180;
+
+    private static readonly HashSet<string> AllowedCategoryImageExtensions =
+    [
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"
+    ];
 
     /// <summary>Lists all categories with product counts (non-deleted products), ordered by display order then name.</summary>
     [HttpGet]
@@ -28,6 +35,7 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
                 Name = c.Name,
                 Slug = c.Slug,
                 Description = c.Description,
+                ImageUrl = c.ImageUrl,
                 ParentCategoryId = c.ParentCategoryId,
                 DisplayOrder = c.DisplayOrder,
                 IsActive = c.IsActive,
@@ -58,6 +66,7 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
                 Name = c.Name,
                 Slug = c.Slug,
                 Description = c.Description,
+                ImageUrl = c.ImageUrl,
                 ParentCategoryId = c.ParentCategoryId,
                 DisplayOrder = c.DisplayOrder,
                 IsActive = c.IsActive,
@@ -66,6 +75,55 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
             .FirstOrDefaultAsync(cancellationToken);
 
         return dto is null ? NotFound() : Ok(dto);
+    }
+
+    /// <summary>Uploads a category image (admin). Stored under wwwroot/images/categories.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("upload-image")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(CategoryImageUploadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<CategoryImageUploadResponse>> UploadCategoryImage(
+        IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        file ??= Request.Form.Files.FirstOrDefault();
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest("A non-empty image file is required.");
+        }
+
+        var ext = Path.GetExtension(file.FileName);
+        if (string.IsNullOrEmpty(ext) || !AllowedCategoryImageExtensions.Contains(ext.ToLowerInvariant()))
+        {
+            return BadRequest("Allowed image types: JPEG, PNG, GIF, WebP, BMP, SVG.");
+        }
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("The uploaded file must be an image.");
+        }
+
+        var webRoot = webHostEnvironment.WebRootPath;
+        if (string.IsNullOrEmpty(webRoot))
+        {
+            webRoot = Path.Combine(webHostEnvironment.ContentRootPath, "wwwroot");
+        }
+
+        var dir = Path.Combine(webRoot, "images", "categories");
+        Directory.CreateDirectory(dir);
+
+        var fileName = $"category-{Guid.NewGuid():N}{ext}";
+        var physicalPath = Path.Combine(dir, fileName);
+
+        await using (var stream = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                       bufferSize: 64 * 1024, useAsync: true))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        var publicUrl = "/images/categories/" + fileName;
+        return Ok(new CategoryImageUploadResponse { Url = publicUrl });
     }
 
     /// <summary>Creates a category (admin).</summary>
@@ -99,6 +157,7 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
             Name = dto.Name.Trim(),
             Slug = slug,
             Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            ImageUrl = string.IsNullOrWhiteSpace(dto.ImageUrl) ? null : dto.ImageUrl.Trim(),
             ParentCategoryId = dto.ParentCategoryId,
             DisplayOrder = dto.DisplayOrder,
             IsActive = dto.IsActive,
@@ -161,6 +220,7 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
 
         entity.Name = dto.Name.Trim();
         entity.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+        entity.ImageUrl = string.IsNullOrWhiteSpace(dto.ImageUrl) ? null : dto.ImageUrl.Trim();
         entity.ParentCategoryId = dto.ParentCategoryId;
         entity.DisplayOrder = dto.DisplayOrder;
         entity.IsActive = dto.IsActive;
@@ -241,6 +301,7 @@ public sealed class CategoryController(IRepository<Category> categoryRepository)
                 Name = c.Name,
                 Slug = c.Slug,
                 Description = c.Description,
+                ImageUrl = c.ImageUrl,
                 ParentCategoryId = c.ParentCategoryId,
                 DisplayOrder = c.DisplayOrder,
                 IsActive = c.IsActive,

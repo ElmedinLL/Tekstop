@@ -176,6 +176,10 @@ namespace TechVault.API.Data.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 

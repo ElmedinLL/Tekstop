@@ -108,6 +108,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(160);
             entity.Property(e => e.Slug).HasMaxLength(180);
             entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.ImageUrl).HasMaxLength(2048);
 
             entity.HasOne(e => e.ParentCategory)
                 .WithMany(e => e.ChildCategories)
