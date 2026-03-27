@@ -2,11 +2,10 @@ namespace TechVault.API.Models.Enums;
 
 public enum OrderStatus
 {
-    PendingPayment = 0,
-    Paid = 1,
+    Pending = 0,
+    Confirmed = 1,
     Processing = 2,
     Shipped = 3,
     Delivered = 4,
-    Cancelled = 5,
-    Refunded = 6
+    Cancelled = 5
 }

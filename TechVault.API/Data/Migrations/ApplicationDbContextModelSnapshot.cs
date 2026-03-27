@@ -295,8 +295,22 @@ namespace TechVault.API.Data.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("varchar(8)");
 
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ConfirmedAtUtc")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime?>("DeliveredAtUtc")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
@@ -306,7 +320,14 @@ namespace TechVault.API.Data.Migrations
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
                     b.Property<DateTime>("PlacedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ProcessingAtUtc")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("ShippedAtUtc")
