@@ -8,6 +8,7 @@ using TechVault.API.Auth;
 using TechVault.API.Data;
 using TechVault.API.Inventory;
 using TechVault.API.Mapping;
+using TechVault.API.Middleware;
 using TechVault.API.Notifications;
 using TechVault.API.Payments;
 using TechVault.API.Repositories;
@@ -191,6 +192,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
