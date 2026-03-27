@@ -47,7 +47,9 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.Role);
+            entity.HasIndex(e => e.IdentityUserId).IsUnique();
 
+            entity.Property(e => e.IdentityUserId).HasMaxLength(450);
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.PasswordHash).HasMaxLength(512);
             entity.Property(e => e.FirstName).HasMaxLength(100);

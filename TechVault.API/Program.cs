@@ -31,6 +31,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IDomainUserService, DomainUserService>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
