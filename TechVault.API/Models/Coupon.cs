@@ -20,4 +20,9 @@ public class Coupon
     public DateTime? ExpiresAtUtc { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Maximum redemptions across all customers; null = unlimited.</summary>
+    public int? UsageLimit { get; set; }
+
+    public int UsageCount { get; set; }
 }

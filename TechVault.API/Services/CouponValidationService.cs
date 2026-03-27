@@ -48,6 +48,11 @@ public sealed class CouponValidationService(ApplicationDbContext db) : ICouponVa
                 $"This coupon requires a minimum order of {coupon.MinOrderValue:0.00}.");
         }
 
+        if (coupon.UsageLimit is { } cap && cap > 0 && coupon.UsageCount >= cap)
+        {
+            return Invalid("This coupon has reached its usage limit.");
+        }
+
         var discount = coupon.DiscountType switch
         {
             DiscountType.Percent => Math.Round(orderSubtotal * (coupon.DiscountValue / 100m), 2, MidpointRounding.AwayFromZero),

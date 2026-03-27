@@ -369,6 +369,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.DiscountType).HasConversion<int>();
             entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
             entity.Property(e => e.MinOrderValue).HasPrecision(18, 2);
+            entity.Property(e => e.UsageCount).HasDefaultValue(0);
         });
     }
 

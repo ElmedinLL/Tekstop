@@ -174,6 +174,16 @@ public sealed class OrderService(
             }
 
             db.CartItems.RemoveRange(cartItems);
+
+            if (couponCode is not null)
+            {
+                var couponEntity = await db.Coupons.FirstOrDefaultAsync(c => c.Code == couponCode, cancellationToken);
+                if (couponEntity is not null)
+                {
+                    couponEntity.UsageCount++;
+                }
+            }
+
             await db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
 
