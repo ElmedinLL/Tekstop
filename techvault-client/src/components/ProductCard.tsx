@@ -1,8 +1,12 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
 import { useAuth } from '../auth/AuthContext'
+import {
+  notifyWishlistAuthRequired,
+  notifyWishlistError,
+  notifyWishlistToggled,
+} from '../lib/notifications'
 import { addToWishlist, fetchWishlist, removeFromWishlist } from '../lib/wishlist'
 
 export type ProductCardProps = {
@@ -208,10 +212,10 @@ export function ProductCard({
       onWishlistChange?.(id, inWishlist)
       setHeartPop(true)
       window.setTimeout(() => setHeartPop(false), 450)
-      toast.success(inWishlist ? 'Saved to wishlist' : 'Removed from wishlist')
+      notifyWishlistToggled(inWishlist)
     },
     onError: () => {
-      toast.error('Could not update wishlist.')
+      notifyWishlistError()
     },
   })
 
@@ -219,14 +223,14 @@ export function ProductCard({
   const fmt = priceFormatter(currency)
   const showRating = typeof rating === 'number' && !Number.isNaN(rating)
 
-  const handleWishlistClick = (e: React.MouseEvent) => {
+  const handleWishlistClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     e.stopPropagation()
     if (isInitializing) {
       return
     }
     if (!isAuthenticated) {
-      toast.error('Sign in to save items to your wishlist.')
+      notifyWishlistAuthRequired()
       return
     }
     if (productIdNum == null || wishlistToggleMu.isPending) {

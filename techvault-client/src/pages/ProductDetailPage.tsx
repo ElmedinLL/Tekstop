@@ -5,7 +5,7 @@ import axios from 'axios'
 import { api } from '../lib/api'
 import { fetchProductReviews } from '../lib/reviews'
 import type { ProductDetail } from '../types/product'
-import toast from 'react-hot-toast'
+import { notifyCartAdded, notifyCartError } from '../lib/notifications'
 import { ProductImageGallery } from '../components/ProductImageGallery'
 import { ReviewForm } from '../components/ReviewForm'
 import { ReviewList } from '../components/ReviewList'
@@ -134,9 +134,9 @@ export function ProductDetailPage() {
       await addItem(product.id, quantity)
       flyToCart(addToCartBtnRef.current)
       setCartDrawerOpen(true)
-      toast.success('Added to cart')
+      notifyCartAdded(product.name)
     } catch {
-      toast.error('Could not add to cart')
+      notifyCartError()
     }
   }
 

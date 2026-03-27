@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import {
+  notifyMovedToCart,
+  notifyWishlistActionError,
+  notifyWishlistItemRemoved,
+} from '../lib/notifications'
 import { ProductGrid } from '../components/ProductGrid'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { fetchWishlist, removeFromWishlist } from '../lib/wishlist'
@@ -24,9 +28,9 @@ export function WishlistPage() {
     mutationFn: removeFromWishlist,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['wishlist'] })
-      toast.success('Removed from wishlist.')
+      notifyWishlistItemRemoved()
     },
-    onError: () => toast.error('Could not remove item.'),
+    onError: () => notifyWishlistActionError('Could not remove item.'),
   })
 
   const moveMu = useMutation({
@@ -36,10 +40,10 @@ export function WishlistPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['wishlist'] })
-      toast.success('Moved to cart.')
+      notifyMovedToCart()
       setCartDrawerOpen(true)
     },
-    onError: () => toast.error('Could not move to cart.'),
+    onError: () => notifyWishlistActionError('Could not move to cart.'),
   })
 
   const items = data ?? []

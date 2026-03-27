@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { isAxiosError } from 'axios'
-import toast from 'react-hot-toast'
+import { toast } from '../lib/notifications'
 import { createOrder } from '../lib/orders'
 import { createPaymentIntent } from '../lib/payments'
 import type { CartDto } from '../types/cart'

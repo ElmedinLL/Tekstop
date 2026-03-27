@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from '../lib/notifications'
 import { isAxiosError } from 'axios'
 import { useAuth } from '../auth/AuthContext'
 import { createProductReview } from '../lib/reviews'
