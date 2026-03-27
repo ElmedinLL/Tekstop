@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TechVault.API.Auth;
 using TechVault.API.Data;
+using TechVault.API.Inventory;
 using TechVault.API.Mapping;
 using TechVault.API.Notifications;
 using TechVault.API.Payments;
@@ -43,6 +44,9 @@ builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>(
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IProductReviewStatsService, ProductReviewStatsService>();
+builder.Services.Configure<InventorySettings>(builder.Configuration.GetSection(InventorySettings.SectionName));
+builder.Services.AddScoped<ILowStockInventoryService, LowStockInventoryService>();
+builder.Services.AddHostedService<LowStockInventoryMonitorHostedService>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

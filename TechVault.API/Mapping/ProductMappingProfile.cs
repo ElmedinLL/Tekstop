@@ -17,6 +17,9 @@ public sealed class ProductMappingProfile : Profile
     {
         CreateMap<Category, ProductCategoryDto>();
 
+        CreateMap<Product, LowStockProductDto>()
+            .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name));
+
         CreateMap<Product, ProductDto>()
             .ForMember(d => d.Stock, o => o.MapFrom(s => s.StockQuantity))
             .ForMember(d => d.Images, o => o.MapFrom(s => ExtractImages(s)))
