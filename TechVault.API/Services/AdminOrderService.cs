@@ -1,7 +1,7 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TechVault.API.Data;
+using TechVault.API.Models;
 using TechVault.API.Models.Enums;
 using TechVault.API.Orders;
 
@@ -9,78 +9,11 @@ namespace TechVault.API.Services;
 
 public sealed class AdminOrderService(
     ApplicationDbContext db,
+    AuthDbContext authDb,
     IOrderNotificationService orderNotificationService,
     ILogger<AdminOrderService> logger) : IAdminOrderService
 {
-    private const int PageSize = 15;
-
-    public async Task<AdminOrderListResult> ListOrdersAsync(
-        int page,
-        string? status,
-        string? fromDate,
-        string? toDate,
-        CancellationToken cancellationToken = default)
-    {
-        page = Math.Max(1, page);
-
-        if (!string.IsNullOrWhiteSpace(status)
-            && !status.Equals("all", StringComparison.OrdinalIgnoreCase)
-            && !Enum.TryParse<OrderStatus>(status, true, out _))
-        {
-            throw new ArgumentException("Invalid status filter.");
-        }
-
-        var query = db.Orders.AsNoTracking();
-
-        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            var parsed = Enum.Parse<OrderStatus>(status, true);
-            query = query.Where(o => o.Status == parsed);
-        }
-
-        var fromUtc = ParseDateStartUtc(fromDate);
-        var toExclusive = ParseDateEndExclusiveUtc(toDate);
-
-        if (fromUtc.HasValue)
-        {
-            query = query.Where(o => o.PlacedAtUtc >= fromUtc.Value);
-        }
-
-        if (toExclusive.HasValue)
-        {
-            query = query.Where(o => o.PlacedAtUtc < toExclusive.Value);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var rows = await query
-            .OrderByDescending(o => o.PlacedAtUtc)
-            .Skip((page - 1) * PageSize)
-            .Take(PageSize)
-            .Select(o => new AdminOrderSummaryDto
-            {
-                Id = o.Id,
-                OrderNumber = o.OrderNumber,
-                CustomerEmail = o.User != null ? o.User.Email : "",
-                CustomerName = o.User != null
-                    ? o.User.FirstName + " " + o.User.LastName
-                    : "—",
-                PlacedAtUtc = o.PlacedAtUtc,
-                Total = o.Total,
-                Currency = o.Currency,
-                Status = o.Status.ToString(),
-                LineItemCount = o.OrderItems.Count
-            })
-            .ToListAsync(cancellationToken);
-
-        return new AdminOrderListResult
-        {
-            Items = rows,
-            Page = page,
-            PageSize = PageSize,
-            TotalCount = totalCount
-        };
-    }
+    private const int MaxPageSize = 100;
 
     public async Task<AdminOrderDetailDto?> GetOrderByIdAsync(int orderId, CancellationToken cancellationToken = default)
     {
@@ -193,31 +126,194 @@ public sealed class AdminOrderService(
         }
     }
 
-    private static DateTime? ParseDateStartUtc(string? s)
+    public async Task UpdateOrderStatusAsync(int orderId, UpdateOrderStatusDto dto, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(s))
+        if (!Enum.TryParse<OrderStatus>(dto.Status, ignoreCase: true, out var newStatus))
         {
-            return null;
+            throw new InvalidOperationException("Invalid status value.");
         }
 
-        return DateOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
-            ? DateTime.SpecifyKind(d.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
-            : null;
+        if (newStatus == OrderStatus.PendingPayment)
+        {
+            throw new InvalidOperationException("Cannot set status to PendingPayment.");
+        }
+
+        if (newStatus == OrderStatus.Shipped)
+        {
+            if (string.IsNullOrWhiteSpace(dto.TrackingUrl))
+            {
+                throw new InvalidOperationException("Tracking URL is required when status is Shipped.");
+            }
+
+            await MarkOrderShippedAsync(orderId, dto.TrackingUrl, cancellationToken);
+            return;
+        }
+
+        var order = await db.Orders
+            .Include(o => o.User)
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if (order is null)
+        {
+            throw new KeyNotFoundException("Order was not found.");
+        }
+
+        if (order.Status == newStatus)
+        {
+            return;
+        }
+
+        ApplyAdminStatusChange(order, newStatus);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static DateTime? ParseDateEndExclusiveUtc(string? s)
+    private static void ApplyAdminStatusChange(Order order, OrderStatus newStatus)
     {
-        if (string.IsNullOrWhiteSpace(s))
+        var now = DateTime.UtcNow;
+        order.Status = newStatus;
+        switch (newStatus)
         {
-            return null;
+            case OrderStatus.Confirmed:
+                order.ConfirmedAtUtc ??= now;
+                break;
+            case OrderStatus.Processing:
+                order.ProcessingAtUtc ??= now;
+                break;
+            case OrderStatus.Paid:
+                order.PaidAtUtc ??= now;
+                break;
+            case OrderStatus.Delivered:
+                order.DeliveredAtUtc ??= now;
+                break;
+            case OrderStatus.Cancelled:
+                order.CancelledAtUtc ??= now;
+                break;
+            case OrderStatus.Refunded:
+                order.CancelledAtUtc ??= now;
+                break;
+            case OrderStatus.Pending:
+            case OrderStatus.Shipped:
+            case OrderStatus.PendingPayment:
+                break;
+            default:
+                break;
+        }
+    }
+
+    public async Task<AdminOrderListResult> ListOrdersAsync(
+        OrderStatus? status,
+        DateTime? fromPlacedUtc,
+        DateTime? toPlacedUtc,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
+        var query = db.Orders.AsNoTracking().AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(o => o.Status == status.Value);
         }
 
-        if (!DateOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+        if (fromPlacedUtc.HasValue)
         {
-            return null;
+            var start = DateTime.SpecifyKind(fromPlacedUtc.Value.Date, DateTimeKind.Utc);
+            query = query.Where(o => o.PlacedAtUtc >= start);
         }
 
-        var next = d.AddDays(1);
-        return DateTime.SpecifyKind(next.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        if (toPlacedUtc.HasValue)
+        {
+            var endExclusive = DateTime.SpecifyKind(toPlacedUtc.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(o => o.PlacedAtUtc < endExclusive);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            if (term.Length > 256)
+            {
+                term = term[..256];
+            }
+
+            if (long.TryParse(term, out var oid) && oid >= int.MinValue && oid <= int.MaxValue)
+            {
+                var id = (int)oid;
+                query = query.Where(o => o.Id == id || o.OrderNumber.Contains(term));
+            }
+            else
+            {
+                var identityIdsForSearch = await authDb.Users.AsNoTracking()
+                    .Where(u => u.Email != null && u.Email.Contains(term))
+                    .Select(u => u.Id)
+                    .ToListAsync(cancellationToken);
+
+                query = query.Where(o =>
+                    o.OrderNumber.Contains(term) ||
+                    (o.User != null && o.User.Email.Contains(term)) ||
+                    (o.IdentityUserId != null && identityIdsForSearch.Contains(o.IdentityUserId)));
+            }
+        }
+
+        query = query.OrderByDescending(o => o.PlacedAtUtc);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var rows = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                o.Status,
+                o.Total,
+                o.Currency,
+                o.PlacedAtUtc,
+                o.IdentityUserId,
+                LineItemCount = o.OrderItems.Count,
+                DomainEmail = o.User != null ? o.User.Email : null
+            })
+            .ToListAsync(cancellationToken);
+
+        var identityIds = rows
+            .Where(r => r.DomainEmail == null && !string.IsNullOrEmpty(r.IdentityUserId))
+            .Select(r => r.IdentityUserId!)
+            .Distinct()
+            .ToList();
+
+        IReadOnlyDictionary<string, string?> identityEmails = new Dictionary<string, string?>();
+        if (identityIds.Count > 0)
+        {
+            identityEmails = await authDb.Users.AsNoTracking()
+                .Where(u => identityIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Email })
+                .ToDictionaryAsync(x => x.Id, x => x.Email, cancellationToken);
+        }
+
+        var items = rows.Select(r => new AdminOrderListItemDto
+        {
+            Id = r.Id,
+            OrderNumber = r.OrderNumber,
+            Status = r.Status.ToString(),
+            PlacedAtUtc = r.PlacedAtUtc,
+            Total = r.Total,
+            Currency = r.Currency,
+            LineItemCount = r.LineItemCount,
+            CustomerEmail = r.DomainEmail
+                ?? (r.IdentityUserId != null && identityEmails.TryGetValue(r.IdentityUserId, out var em) ? em : null)
+        }).ToList();
+
+        return new AdminOrderListResult
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 }

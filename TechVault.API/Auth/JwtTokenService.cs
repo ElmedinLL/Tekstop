@@ -46,6 +46,11 @@ public sealed class JwtTokenService(
             new("LastName", user.LastName),
         };
 
+        if (!string.IsNullOrEmpty(user.ProfilePicture))
+        {
+            claims.Add(new Claim("ProfilePicture", user.ProfilePicture));
+        }
+
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));

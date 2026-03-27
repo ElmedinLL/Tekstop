@@ -38,8 +38,13 @@ export function Navbar({ onOpenCart }: NavbarProps) {
             {count}
           </span>
         </button>
+        {isAuthenticated && (
+          <Link className="text-blue-600 hover:underline" to="/wishlist">
+            Wishlist
+          </Link>
+        )}
         <Link className="text-blue-600 hover:underline" to="/account">
-          Account
+          Profile
         </Link>
         <Link className="text-blue-600 hover:underline" to="/admin/orders">
           Admin

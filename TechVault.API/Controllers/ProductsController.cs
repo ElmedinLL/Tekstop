@@ -352,7 +352,10 @@ public sealed class ProductsController(
             "name_desc" => ProductSort.NameDescending,
             "name" => ProductSort.NameAscending,
             "oldest" => ProductSort.OldestFirst,
+            "stock_asc" => ProductSort.StockAscending,
             "stock_desc" => ProductSort.StockDescending,
+            "category_asc" => ProductSort.CategoryAscending,
+            "category_desc" => ProductSort.CategoryDescending,
             "newest" => ProductSort.NewestFirst,
             _ => ProductSort.NewestFirst
         };

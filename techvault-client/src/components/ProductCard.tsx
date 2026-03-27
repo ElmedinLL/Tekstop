@@ -1,5 +1,13 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../auth/AuthContext'
+import {
+  notifyWishlistAuthRequired,
+  notifyWishlistError,
+  notifyWishlistToggled,
+} from '../lib/notifications'
+import { addToWishlist, fetchWishlist, removeFromWishlist } from '../lib/wishlist'
 
 export type ProductCardProps = {
   id: number | string
@@ -16,8 +24,8 @@ export type ProductCardProps = {
   /** In-app route (e.g. `/products/my-slug`). Image and title link here. */
   productTo?: string
   onAddToCart?: (id: ProductCardProps['id']) => void
-  onWishlistToggle?: (id: ProductCardProps['id']) => void
-  wishlisted?: boolean
+  /** Optional: called after wishlist is updated successfully. */
+  onWishlistChange?: (id: ProductCardProps['id'], inWishlist: boolean) => void
   className?: string
   /**
    * Optional query to visually highlight in the product title (used by search results).
@@ -132,10 +140,10 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-function HeartIcon({ filled }: { filled: boolean }) {
+function HeartIcon({ filled, className = '' }: { filled: boolean; className?: string }) {
   return (
     <svg
-      className="h-5 w-5"
+      className={`h-5 w-5 transition-colors duration-200 ${className}`}
       viewBox="0 0 24 24"
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
@@ -163,15 +171,73 @@ export function ProductCard({
   currency = 'USD',
   productTo,
   onAddToCart,
-  onWishlistToggle,
-  wishlisted = false,
+  onWishlistChange,
   className = '',
   highlightQuery = null,
 }: ProductCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
+  const [heartPop, setHeartPop] = useState(false)
+  const { isAuthenticated, isInitializing } = useAuth()
+  const queryClient = useQueryClient()
+
+  const productIdNum = useMemo(() => {
+    const n = typeof id === 'number' ? id : Number.parseInt(String(id), 10)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [id])
+
+  const wishlistQuery = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: fetchWishlist,
+    enabled: isAuthenticated && !isInitializing && productIdNum != null,
+  })
+
+  const wishlisted =
+    productIdNum != null &&
+    (wishlistQuery.data?.some((w) => w.productId === productIdNum) ?? false)
+
+  const wishlistToggleMu = useMutation({
+    mutationFn: async () => {
+      if (productIdNum == null) {
+        throw new Error('Invalid product')
+      }
+      if (wishlisted) {
+        await removeFromWishlist(productIdNum)
+        return false
+      }
+      await addToWishlist(productIdNum)
+      return true
+    },
+    onSuccess: (inWishlist) => {
+      void queryClient.invalidateQueries({ queryKey: ['wishlist'] })
+      onWishlistChange?.(id, inWishlist)
+      setHeartPop(true)
+      window.setTimeout(() => setHeartPop(false), 450)
+      notifyWishlistToggled(inWishlist)
+    },
+    onError: () => {
+      notifyWishlistError()
+    },
+  })
+
   const inStock = stockQuantity > 0
   const fmt = priceFormatter(currency)
   const showRating = typeof rating === 'number' && !Number.isNaN(rating)
+
+  const handleWishlistClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (isInitializing) {
+      return
+    }
+    if (!isAuthenticated) {
+      notifyWishlistAuthRequired()
+      return
+    }
+    if (productIdNum == null || wishlistToggleMu.isPending) {
+      return
+    }
+    wishlistToggleMu.mutate()
+  }
 
   const imageBlock = (
     <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl bg-slate-100">
@@ -195,19 +261,18 @@ export function ProductCard({
           Out of stock
         </span>
       )}
-      {onWishlistToggle && (
-        <button
-          type="button"
-          onClick={() => onWishlistToggle(id)}
-          className={`absolute right-2 top-2 rounded-full bg-white/95 p-2 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-white ${
-            wishlisted ? 'text-red-500' : 'text-slate-500 hover:text-red-400'
-          }`}
-          aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          aria-pressed={wishlisted}
-        >
-          <HeartIcon filled={wishlisted} />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleWishlistClick}
+        disabled={wishlistToggleMu.isPending || productIdNum == null}
+        className={`absolute right-2 top-2 rounded-full bg-white/95 p-2 shadow-sm ring-1 ring-slate-200/80 transition-[transform,background-color] duration-300 ease-out will-change-transform hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 ${
+          wishlisted ? 'text-red-500' : 'text-slate-500 hover:text-red-400'
+        } ${heartPop ? 'scale-[1.22]' : 'scale-100'}`}
+        aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        aria-pressed={wishlisted}
+      >
+        <HeartIcon filled={wishlisted} />
+      </button>
     </div>
   )
 

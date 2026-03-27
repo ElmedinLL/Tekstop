@@ -13,4 +13,7 @@ public sealed class OrderItemDto
     public int Quantity { get; set; }
 
     public decimal LineTotal { get; set; }
+
+    /// <summary>Primary product image URL when the product still exists.</summary>
+    public string? ImageUrl { get; set; }
 }

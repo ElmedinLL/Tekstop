@@ -248,7 +248,10 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             ProductSort.NameDescending => query.OrderByDescending(p => p.Name),
             ProductSort.PriceAscending => query.OrderBy(p => p.Price),
             ProductSort.PriceDescending => query.OrderByDescending(p => p.Price),
+            ProductSort.StockAscending => query.OrderBy(p => p.StockQuantity),
             ProductSort.StockDescending => query.OrderByDescending(p => p.StockQuantity),
+            ProductSort.CategoryAscending => query.OrderBy(p => p.Category.Name),
+            ProductSort.CategoryDescending => query.OrderByDescending(p => p.Category.Name),
             ProductSort.NewestFirst or _ => query.OrderByDescending(p => p.CreatedAtUtc),
         };
 

@@ -8,5 +8,8 @@ public enum ProductSort
     NameDescending,
     PriceAscending,
     PriceDescending,
+    StockAscending,
     StockDescending,
+    CategoryAscending,
+    CategoryDescending,
 }

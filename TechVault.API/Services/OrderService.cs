@@ -305,6 +305,7 @@ public sealed class OrderService(
         var order = await db.Orders
             .AsNoTracking()
             .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(
                 o => o.Id == orderId && o.UserId == domainUserId,
                 cancellationToken);
@@ -322,7 +323,8 @@ public sealed class OrderService(
                 ProductSku = oi.ProductSku,
                 UnitPrice = oi.UnitPrice,
                 Quantity = oi.Quantity,
-                LineTotal = oi.LineTotal
+                LineTotal = oi.LineTotal,
+                ImageUrl = oi.Product is { IsDeleted: false } ? oi.Product.ImageUrl : null
             })
             .ToList();
 
@@ -342,9 +344,22 @@ public sealed class OrderService(
             PaymentMethod = order.PaymentMethod,
             CouponCode = order.CouponCode,
             PlacedAtUtc = order.PlacedAtUtc,
+            ConfirmedAtUtc = order.ConfirmedAtUtc,
+            ProcessingAtUtc = order.ProcessingAtUtc,
+            PaidAtUtc = order.PaidAtUtc,
             EstimatedDeliveryUtc = estimated,
             ShippedAtUtc = order.ShippedAtUtc,
+            DeliveredAtUtc = order.DeliveredAtUtc,
+            CancelledAtUtc = order.CancelledAtUtc,
             TrackingUrl = order.TrackingUrl,
+            ShippingFullName = order.ShippingFullName,
+            ShippingLine1 = order.ShippingLine1,
+            ShippingLine2 = order.ShippingLine2,
+            ShippingCity = order.ShippingCity,
+            ShippingRegion = order.ShippingRegion,
+            ShippingPostalCode = order.ShippingPostalCode,
+            ShippingCountry = order.ShippingCountry,
+            ShippingPhone = order.ShippingPhone,
             Items = items
         };
     }

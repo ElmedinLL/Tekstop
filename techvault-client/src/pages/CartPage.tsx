@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import toast from 'react-hot-toast'
+import { toast } from '../lib/notifications'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { validateCoupon } from '../lib/coupon'
 import { useCartStore } from '../store/useCartStore'

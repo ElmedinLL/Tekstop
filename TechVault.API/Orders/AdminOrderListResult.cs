@@ -2,7 +2,7 @@ namespace TechVault.API.Orders;
 
 public sealed class AdminOrderListResult
 {
-    public IReadOnlyList<AdminOrderSummaryDto> Items { get; set; } = Array.Empty<AdminOrderSummaryDto>();
+    public IReadOnlyList<AdminOrderListItemDto> Items { get; set; } = Array.Empty<AdminOrderListItemDto>();
 
     public int Page { get; set; }
 

@@ -23,6 +23,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,6 +42,7 @@ public class ApplicationDbContext : DbContext
         ConfigurePayment(modelBuilder);
         ConfigureReview(modelBuilder);
         ConfigureCoupon(modelBuilder);
+        ConfigureWishlistItem(modelBuilder);
 
         ApplicationDbContextSeed.Apply(modelBuilder);
     }
@@ -144,6 +146,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SpecsJson).HasColumnType("longtext");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
+            entity.Property(e => e.AverageRating).HasPrecision(4, 2);
+            entity.Property(e => e.ReviewCount).HasDefaultValue(0);
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
 
             entity.HasMany(p => p.OrderItems)
@@ -332,6 +336,10 @@ public class ApplicationDbContext : DbContext
     {
         modelBuilder.Entity<Review>(entity =>
         {
+            entity.ToTable(
+                "Reviews",
+                t => t.HasCheckConstraint("CK_Reviews_Rating", "`Rating` >= 1 AND `Rating` <= 5"));
+
             entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
             entity.HasIndex(e => e.ProductId);
 
@@ -360,6 +368,25 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.DiscountType).HasConversion<int>();
             entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
             entity.Property(e => e.MinOrderValue).HasPrecision(18, 2);
+        });
+    }
+
+    private static void ConfigureWishlistItem(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<WishlistItem>(entity =>
+        {
+            entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
+            entity.HasIndex(e => e.ProductId);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.WishlistItems)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.WishlistItems)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

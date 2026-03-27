@@ -9,7 +9,8 @@ namespace TechVault.API.Services;
 public sealed class AdminProductService(
     IMapper mapper,
     IRepository<Product> productRepository,
-    IRepository<Category> categoryRepository) : IAdminProductService
+    IRepository<Category> categoryRepository,
+    IRepository<ProductImage> productImageRepository) : IAdminProductService
 {
     public async Task<Product> CreateAsync(CreateProductDto dto, CancellationToken cancellationToken = default)
     {
@@ -67,6 +68,17 @@ public sealed class AdminProductService(
             if (await SkuTakenAsync(sku, id, cancellationToken))
             {
                 throw new InvalidOperationException($"SKU \"{sku}\" is already in use.");
+            }
+        }
+
+        if (dto.Images is not null)
+        {
+            var existing = await productImageRepository.Query()
+                .Where(i => i.ProductId == id)
+                .ToListAsync(cancellationToken);
+            if (existing.Count > 0)
+            {
+                productImageRepository.RemoveRange(existing);
             }
         }
 
