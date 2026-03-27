@@ -1197,6 +1197,33 @@ namespace TechVault.API.Data.Migrations
                     b.ToTable("Reviews");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.WishlistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("WishlistItems");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Tag", b =>
                 {
                     b.Property<int>("Id")
@@ -1450,6 +1477,25 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.WishlistItem", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Product", "Product")
+                        .WithMany("WishlistItems")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TechVault.API.Models.User", "User")
+                        .WithMany("WishlistItems")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
                 {
                     b.Navigation("ChildCategories");
@@ -1473,6 +1519,8 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("ProductTags");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("WishlistItems");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Tag", b =>
@@ -1487,6 +1535,8 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("WishlistItems");
                 });
 #pragma warning restore 612, 618
         }
