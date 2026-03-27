@@ -1,4 +1,20 @@
+import type { AdminOrderDetail } from '../types/adminOrder'
 import type { OrderDto } from '../types/order'
+
+/** Fields required to render the same tracking timeline as the customer order page. */
+export type OrderTimelineSource = Pick<
+  OrderDto,
+  | 'status'
+  | 'placedAtUtc'
+  | 'confirmedAtUtc'
+  | 'processingAtUtc'
+  | 'paidAtUtc'
+  | 'estimatedDeliveryUtc'
+  | 'shippedAtUtc'
+  | 'deliveredAtUtc'
+  | 'cancelledAtUtc'
+  | 'trackingUrl'
+>
 
 export type OrderTimelineEntry = {
   id: string
@@ -16,7 +32,7 @@ export function formatOrderTimelineDate(iso: string | null | undefined) {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
 }
 
-export function buildOrderTimeline(order: OrderDto): OrderTimelineEntry[] {
+export function buildOrderTimeline(order: OrderTimelineSource): OrderTimelineEntry[] {
   if (order.status === 'Cancelled') {
     return [
       { id: 'placed', title: 'Order placed', date: order.placedAtUtc },
@@ -77,11 +93,26 @@ export function buildOrderTimeline(order: OrderDto): OrderTimelineEntry[] {
   return entries
 }
 
+export function adminOrderDetailToTimelineSource(detail: AdminOrderDetail): OrderTimelineSource {
+  return {
+    status: detail.status,
+    placedAtUtc: detail.placedAtUtc,
+    confirmedAtUtc: detail.confirmedAtUtc ?? null,
+    processingAtUtc: detail.processingAtUtc ?? null,
+    paidAtUtc: detail.paidAtUtc ?? null,
+    estimatedDeliveryUtc: detail.estimatedDeliveryUtc ?? null,
+    shippedAtUtc: detail.shippedAtUtc ?? null,
+    deliveredAtUtc: detail.deliveredAtUtc ?? null,
+    cancelledAtUtc: detail.cancelledAtUtc ?? null,
+    trackingUrl: detail.trackingUrl ?? null,
+  }
+}
+
 export function getOrderTimelineStepState(
   entry: OrderTimelineEntry,
   index: number,
   entries: OrderTimelineEntry[],
-  order: OrderDto,
+  order: OrderTimelineSource,
 ): OrderTimelineStepState {
   if (order.status === 'Cancelled') {
     if (entry.id === 'cancelled') return entry.date ? 'complete' : 'current'

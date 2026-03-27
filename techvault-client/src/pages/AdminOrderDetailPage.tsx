@@ -1,9 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import toast from 'react-hot-toast'
-import { fetchAdminOrder, shipAdminOrder } from '../lib/adminOrders'
+import { OrderTrackingTimeline } from '../components/OrderTrackingTimeline'
+import { toast } from '../lib/notifications'
+import { adminOrderDetailToTimelineSource } from '../lib/orderTimeline'
+import { fetchAdminOrder, updateAdminOrderStatus } from '../lib/adminOrders'
+
+const ADMIN_STATUS_OPTIONS = [
+  'Pending',
+  'Confirmed',
+  'Processing',
+  'Paid',
+  'Shipped',
+  'Delivered',
+  'Cancelled',
+  'Refunded',
+] as const
 
 function formatUtc(iso: string) {
   const d = new Date(iso)
@@ -18,8 +31,14 @@ function formatMoney(amount: number, currency: string) {
   }
 }
 
-function canMarkShipped(status: string) {
-  return ['Confirmed', 'Processing', 'Paid'].includes(status)
+function parseAxiosMessage(e: unknown) {
+  if (!axios.isAxiosError(e)) return null
+  const d = e.response?.data
+  if (typeof d === 'string') return d
+  if (d && typeof d === 'object' && ('detail' in d || 'title' in d)) {
+    return String((d as { detail?: string; title?: string }).detail ?? (d as { title?: string }).title)
+  }
+  return null
 }
 
 export function AdminOrderDetailPage() {
@@ -27,7 +46,9 @@ export function AdminOrderDetailPage() {
   const orderId = orderIdParam ? Number.parseInt(orderIdParam, 10) : NaN
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [trackingUrl, setTrackingUrl] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [statusModalOpen, setStatusModalOpen] = useState(false)
+  const [trackingUrlDraft, setTrackingUrlDraft] = useState('')
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['adminOrder', orderId],
@@ -35,33 +56,70 @@ export function AdminOrderDetailPage() {
     enabled: Number.isFinite(orderId),
   })
 
-  const shipMutation = useMutation({
-    mutationFn: () => shipAdminOrder(orderId, trackingUrl.trim()),
+  useEffect(() => {
+    if (data?.status) {
+      setSelectedStatus(data.status)
+    }
+  }, [data?.status, data?.id])
+
+  const statusOptions = useMemo(() => {
+    const base: string[] = [...ADMIN_STATUS_OPTIONS]
+    if (data?.status && !base.includes(data.status)) {
+      base.push(data.status)
+    }
+    return base
+  }, [data?.status])
+
+  const statusMutation = useMutation({
+    mutationFn: async (payload: { status: string; trackingUrl?: string | null }) => {
+      await updateAdminOrderStatus(orderId, payload)
+    },
     onSuccess: async () => {
-      toast.success('Order marked as shipped.')
-      setTrackingUrl('')
+      toast.success('Order status updated.')
+      setStatusModalOpen(false)
+      setTrackingUrlDraft('')
       await queryClient.invalidateQueries({ queryKey: ['adminOrder', orderId] })
       await queryClient.invalidateQueries({ queryKey: ['adminOrders'] })
     },
     onError: (e: unknown) => {
-      if (!axios.isAxiosError(e)) {
-        toast.error('Could not update order.')
-        return
-      }
-      const d = e.response?.data
-      const text =
-        typeof d === 'string'
-          ? d
-          : d && typeof d === 'object' && ('detail' in d || 'title' in d)
-            ? String((d as { detail?: string; title?: string }).detail ?? (d as { title?: string }).title)
-            : null
-      toast.error(text ?? e.message ?? 'Could not update order.')
+      toast.error(parseAxiosMessage(e) ?? (e instanceof Error ? e.message : 'Could not update status.'))
     },
   })
 
+  const effectiveSelected = data ? (selectedStatus || data.status) : ''
+  const pendingStatusChange =
+    data && effectiveSelected !== data.status ? effectiveSelected : null
+  const confirmTargetStatus = pendingStatusChange ?? effectiveSelected
+
+  function openStatusModal() {
+    if (!data || selectedStatus === data.status) return
+    setTrackingUrlDraft(data.trackingUrl?.trim() ?? '')
+    setStatusModalOpen(true)
+  }
+
+  function closeStatusModal() {
+    setStatusModalOpen(false)
+    if (data) setSelectedStatus(data.status)
+    setTrackingUrlDraft('')
+  }
+
+  function confirmStatusChange() {
+    if (!data || !pendingStatusChange) return
+    if (pendingStatusChange === 'Shipped') {
+      const url = trackingUrlDraft.trim()
+      if (!url) {
+        toast.error('Tracking URL is required when marking as shipped.')
+        return
+      }
+      statusMutation.mutate({ status: 'Shipped', trackingUrl: url })
+      return
+    }
+    statusMutation.mutate({ status: pendingStatusChange })
+  }
+
   if (!Number.isFinite(orderId)) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="mx-auto max-w-4xl px-4 py-10">
         <p className="text-red-600">Invalid order id.</p>
         <Link className="mt-4 inline-block text-blue-600 hover:underline" to="/admin/orders">
           Back to orders
@@ -71,7 +129,7 @@ export function AdminOrderDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
@@ -100,11 +158,39 @@ export function AdminOrderDetailPage() {
               Order #{data.id}{' '}
               <span className="font-normal text-slate-500">{data.orderNumber}</span>
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Placed {formatUtc(data.placedAtUtc)} · Status{' '}
-              <span className="font-medium text-slate-900">{data.status}</span>
-            </p>
+            <p className="mt-1 text-sm text-slate-600">Placed {formatUtc(data.placedAtUtc)}</p>
           </header>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Update status</h2>
+            <p className="mt-1 text-xs text-slate-600">Choose a new status and confirm. Shipped requires a tracking URL.</p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="block min-w-[12rem] flex-1">
+                <span className="text-xs font-medium text-slate-700">Status</span>
+                <select
+                  value={effectiveSelected}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                >
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={!pendingStatusChange || statusMutation.isPending}
+                onClick={openStatusModal}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Review change
+              </button>
+            </div>
+          </section>
+
+          <OrderTrackingTimeline order={adminOrderDetailToTimelineSource(data)} title="Status timeline" />
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Customer</h2>
@@ -117,7 +203,12 @@ export function AdminOrderDetailPage() {
             <p className="mt-2 text-slate-900">{data.shippingFullName}</p>
             <p className="text-slate-700">
               {data.shippingLine1}
-              {data.shippingLine2 ? <><br />{data.shippingLine2}</> : null}
+              {data.shippingLine2 ? (
+                <>
+                  <br />
+                  {data.shippingLine2}
+                </>
+              ) : null}
             </p>
             <p className="text-slate-700">
               {data.shippingCity}, {data.shippingRegion ?? ''} {data.shippingPostalCode}
@@ -200,33 +291,65 @@ export function AdminOrderDetailPage() {
               )}
             </section>
           )}
+        </div>
+      )}
 
-          {canMarkShipped(data.status) && (
-            <section className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
-              <h2 className="text-sm font-semibold text-slate-900">Mark as shipped</h2>
-              <p className="mt-1 text-xs text-slate-600">
-                Paste the carrier or tracking page URL. The customer will receive an email with this link.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+      {statusModalOpen && data && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="presentation"
+          onClick={closeStatusModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-order-status-dialog-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="admin-order-status-dialog-title" className="text-lg font-semibold text-slate-900">
+              Confirm status change
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Change order <span className="font-medium text-slate-900">{data.orderNumber}</span> from{' '}
+              <span className="font-medium text-slate-900">{data.status}</span> to{' '}
+              <span className="font-medium text-slate-900">{confirmTargetStatus}</span>?
+            </p>
+            {confirmTargetStatus === 'Shipped' && (
+              <div className="mt-4">
+                <label htmlFor="admin-ship-tracking" className="text-xs font-medium text-slate-700">
+                  Tracking URL (https)
+                </label>
                 <input
+                  id="admin-ship-tracking"
                   type="url"
-                  name="trackingUrl"
-                  value={trackingUrl}
-                  onChange={(e) => setTrackingUrl(e.target.value)}
+                  value={trackingUrlDraft}
+                  onChange={(e) => setTrackingUrlDraft(e.target.value)}
                   placeholder="https://..."
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"
+                  autoComplete="off"
                 />
-                <button
-                  type="button"
-                  disabled={shipMutation.isPending || !trackingUrl.trim()}
-                  onClick={() => void shipMutation.mutateAsync()}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {shipMutation.isPending ? 'Saving…' : 'Ship order'}
-                </button>
+                <p className="mt-1 text-xs text-slate-500">The customer receives an email with this link.</p>
               </div>
-            </section>
-          )}
+            )}
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeStatusModal}
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={statusMutation.isPending}
+                onClick={() => void confirmStatusChange()}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {statusMutation.isPending ? 'Updating…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
