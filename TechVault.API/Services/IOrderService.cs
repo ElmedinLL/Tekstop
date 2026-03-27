@@ -9,4 +9,6 @@ public interface IOrderService
     Task<IReadOnlyList<OrderListItemDto>> ListAsync(string identityUserId, CancellationToken cancellationToken = default);
 
     Task<OrderDetailDto?> GetByIdAsync(string identityUserId, int orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderDetailDto?> CancelAsync(string identityUserId, int orderId, CancellationToken cancellationToken = default);
 }

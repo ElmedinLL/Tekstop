@@ -51,6 +51,35 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         return Ok(await orderService.ListAsync(userId, cancellationToken));
     }
 
+    [HttpPut("{id:int}/cancel")]
+    [ProducesResponseType(typeof(OrderDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<OrderDetailDto>> Cancel(int id, CancellationToken cancellationToken)
+    {
+        var userId = ResolveUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var order = await orderService.CancelAsync(userId, id, cancellationToken);
+            if (order is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(OrderDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

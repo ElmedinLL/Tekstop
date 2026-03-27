@@ -160,6 +160,61 @@ public sealed class OrderService(ApplicationDbContext db) : IOrderService
         CancellationToken cancellationToken = default) =>
         MapDetailAsync(orderId, identityUserId, cancellationToken);
 
+    public async Task<OrderDetailDto?> CancelAsync(
+        string identityUserId,
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await db.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(
+                o => o.Id == orderId && o.IdentityUserId == identityUserId,
+                cancellationToken);
+
+        if (order is null)
+        {
+            return null;
+        }
+
+        if (order.Status == OrderStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Order is already cancelled.");
+        }
+
+        if (order.Status != OrderStatus.PendingPayment && order.Status != OrderStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Only pending or confirmed orders can be cancelled.");
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var productIds = order.OrderItems.Select(i => i.ProductId).Distinct().ToList();
+            var products = await db.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, cancellationToken);
+
+            foreach (var line in order.OrderItems)
+            {
+                if (products.TryGetValue(line.ProductId, out var product))
+                {
+                    product.StockQuantity += line.Quantity;
+                }
+            }
+
+            order.Status = OrderStatus.Cancelled;
+            await db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+
+            return await MapDetailAsync(order.Id, identityUserId, cancellationToken);
+        }
+        catch
+        {
+            await tx.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
     private async Task<OrderDetailDto?> MapDetailAsync(
         int orderId,
         string identityUserId,
