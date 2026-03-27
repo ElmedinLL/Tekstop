@@ -89,6 +89,45 @@ public sealed class UserController(
         return Ok(ToProfileDto(user));
     }
 
+    /// <summary>Verifies the current password with Identity and sets a new password.</summary>
+    [HttpPut("change-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var identityUserId = ResolveIdentityUserId();
+        if (string.IsNullOrEmpty(identityUserId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await userManager.FindByIdAsync(identityUserId);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var result = await userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var err in result.Errors)
+            {
+                ModelState.AddModelError(err.Code, err.Description);
+            }
+
+            return ValidationProblem(ModelState);
+        }
+
+        return NoContent();
+    }
+
     /// <summary>Upload a profile image. Stored under wwwroot/images/avatars.</summary>
     [HttpPost("profile/avatar")]
     [Consumes("multipart/form-data")]
