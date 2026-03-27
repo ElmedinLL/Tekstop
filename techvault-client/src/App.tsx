@@ -7,6 +7,8 @@ import { AccountPage } from './pages/AccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminPage } from './pages/AdminPage'
+import { OrdersPage } from './pages/OrdersPage'
+import { OrderDetailPage } from './pages/OrderDetailPage'
 
 export default function App() {
   return (
@@ -21,6 +23,9 @@ export default function App() {
           </Link>
           <Link className="text-blue-600 hover:underline" to="/account">
             Account
+          </Link>
+          <Link className="text-blue-600 hover:underline" to="/orders">
+            Orders
           </Link>
           <Link className="text-blue-600 hover:underline" to="/admin">
             Admin
@@ -42,6 +47,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AccountPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <OrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderDetailPage />
               </ProtectedRoute>
             }
           />
