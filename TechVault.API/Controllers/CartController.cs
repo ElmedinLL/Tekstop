@@ -7,6 +7,9 @@ using TechVault.API.Services;
 
 namespace TechVault.API.Controllers;
 
+/// <summary>
+/// Shopping cart: anonymous (session + cache) and authenticated (database) flows.
+/// </summary>
 [ApiController]
 [Route("api/cart")]
 public sealed class CartController(ICartService cartService) : ControllerBase
