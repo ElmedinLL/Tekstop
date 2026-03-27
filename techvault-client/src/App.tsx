@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AdminRoute } from './auth/AdminRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CartAuthBridge } from './components/CartAuthBridge'
+import { CartDrawer } from './components/CartDrawer'
 import { Navbar } from './components/Navbar'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
@@ -15,10 +17,13 @@ import { SearchPage } from './pages/SearchPage'
 import { CartPage } from './pages/CartPage'
 
 export default function App() {
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <CartAuthBridge />
-      <Navbar />
+      <Navbar onOpenCart={() => setCartDrawerOpen(true)} />
+      <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
