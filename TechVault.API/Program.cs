@@ -19,6 +19,7 @@ using Serilog.Events;
 using TechVault.API.Auth;
 using TechVault.API.Caching;
 using TechVault.API.Data;
+using TechVault.API.Health;
 using TechVault.API.Errors;
 using TechVault.API.Inventory;
 using TechVault.API.Mapping;
@@ -85,6 +86,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("application_database")
+    .AddDbContextCheck<AuthDbContext>("auth_database");
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -302,9 +307,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.DocInclusionPredicate(
-        static (documentName, apiDescription) =>
-            string.Equals(documentName, apiDescription.GroupName, StringComparison.Ordinal));
+    options.DocInclusionPredicate(static (documentName, apiDescription) =>
+    {
+        if (string.IsNullOrEmpty(apiDescription.GroupName))
+        {
+            return string.Equals(documentName, "v1", StringComparison.Ordinal);
+        }
+
+        return string.Equals(documentName, apiDescription.GroupName, StringComparison.Ordinal);
+    });
     options.OperationFilter<SwaggerDefaultValues>();
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -333,6 +344,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+ApplicationUptime.MarkStarted();
 
 using (var scope = app.Services.CreateScope())
 {
