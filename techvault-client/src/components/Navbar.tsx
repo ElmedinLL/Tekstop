@@ -6,6 +6,7 @@ import { useCartQuery } from '../hooks/useCart'
 import { fetchCategories } from '../lib/categories'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { useCartStore } from '../store/useCartStore'
+import { useCompareStore } from '../store/useCompareStore'
 
 type NavbarProps = {
   onOpenCart?: () => void
@@ -59,6 +60,15 @@ function SearchIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden>
       <circle cx="8.5" cy="8.5" r="5" strokeWidth="1.75" />
       <path d="M12.5 12.5L17 17" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CompareIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeWidth="1.75" d="M4 7h6M4 12h10M4 17h8" />
+      <path strokeLinecap="round" strokeWidth="1.75" d="M14 7h6M16 12h4M18 17h2" />
     </svg>
   )
 }
@@ -125,6 +135,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
   const { data: cart } = useCartQuery()
   const count = cart?.totalItemCount ?? 0
   const badgeBump = useCartStore((s) => s.badgeBump)
+  const compareCount = useCompareStore((s) => s.ids.length)
   const scrolled = useScrollShadow()
 
   const [search, setSearch] = useState('')
@@ -264,6 +275,20 @@ export function Navbar({ onOpenCart }: NavbarProps) {
           </form>
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+            <Link
+              to="/compare"
+              className={`${iconBtn} relative`}
+              aria-label={`Compare products, ${compareCount} selected`}
+              title="Compare"
+              onClick={() => setUserOpen(false)}
+            >
+              <CompareIcon className="h-[22px] w-[22px]" />
+              {compareCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-slate-700 px-1 text-[11px] font-bold leading-none text-white">
+                  {compareCount}
+                </span>
+              )}
+            </Link>
             <Link
               to="/wishlist"
               className={iconBtn}

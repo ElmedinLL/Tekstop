@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { api } from '../lib/api'
 import { fetchProductReviews } from '../lib/reviews'
-import type { ProductDetail } from '../types/product'
 import { notifyCartAdded, notifyCartError } from '../lib/notifications'
 import { ProductImageGallery } from '../components/ProductImageGallery'
 import { ReviewForm } from '../components/ReviewForm'
@@ -15,12 +13,10 @@ import { useAddCartItemMutation } from '../hooks/useCart'
 import { Seo } from '../components/Seo'
 import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { fetchProductDetail } from '../hooks/useProduct'
+import { toast } from '../lib/notifications'
+import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 import { useCartStore } from '../store/useCartStore'
-
-async function fetchProductById(id: number): Promise<ProductDetail> {
-  const { data } = await api.get<ProductDetail>(`/products/${id}`)
-  return data
-}
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
@@ -38,7 +34,7 @@ export function ProductDetailPage() {
     error,
   } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => fetchProductById(id),
+    queryFn: () => fetchProductDetail(id),
     enabled: validId,
   })
 
@@ -63,6 +59,8 @@ export function ProductDetailPage() {
   const addToCartBtnRef = useRef<HTMLButtonElement>(null)
   const addCartMu = useAddCartItemMutation()
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
+  const compareToggle = useCompareStore((s) => s.toggle)
+  const inCompare = useCompareStore((s) => s.has(id))
 
   useEffect(() => {
     setQuantity(1)
@@ -250,6 +248,28 @@ export function ProductDetailPage() {
               }`}
             >
               {inStock ? 'Add to cart' : 'Unavailable'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const r = compareToggle(product.id)
+                if (r === 'added') {
+                  toast.success('Added to compare')
+                } else if (r === 'removed') {
+                  toast.success('Removed from compare')
+                } else if (r === 'full') {
+                  toast.error(`You can compare up to ${COMPARE_MAX} products.`, {
+                    description: 'Remove one from your list on the Compare page.',
+                  })
+                }
+              }}
+              className={`rounded-lg border px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                inCompare
+                  ? 'border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                  : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              {inCompare ? 'In compare' : 'Add to compare'}
             </button>
           </div>
         </div>

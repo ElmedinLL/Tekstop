@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { ProductDetail } from '../types/product'
 
-async function fetchProduct(id: number): Promise<ProductDetail> {
+export async function fetchProductDetail(id: number): Promise<ProductDetail> {
   const { data } = await api.get<ProductDetail>(`/products/${id}`)
   return data
 }
@@ -12,7 +12,7 @@ export function useProduct(id: number | null | undefined) {
 
   return useQuery({
     queryKey: ['product', validId],
-    queryFn: () => fetchProduct(validId!),
+    queryFn: () => fetchProductDetail(validId!),
     enabled: validId != null,
   })
 }

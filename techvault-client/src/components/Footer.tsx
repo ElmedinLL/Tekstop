@@ -35,6 +35,7 @@ const LINK_COLUMNS: LinkCol[] = [
       { to: '/', label: 'Home' },
       { to: '/search', label: 'Search' },
       { to: '/cart', label: 'Cart' },
+      { to: '/compare', label: 'Compare' },
       { to: '/checkout', label: 'Checkout' },
     ],
   },

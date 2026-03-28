@@ -67,6 +67,7 @@ const OrderConfirmationPage = lazy(() =>
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
+const ComparePage = lazy(() => import('./pages/ComparePage').then((m) => ({ default: m.ComparePage })))
 
 export default function App() {
   const location = useLocation()
@@ -90,6 +91,7 @@ export default function App() {
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/compare" element={<ComparePage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route
               path="/checkout"
