@@ -1,18 +1,23 @@
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { toast } from '../lib/notifications'
+import { useCartQuery, useRemoveCartLineMutation, useUpdateCartLineMutation } from '../hooks/useCart'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { validateCoupon } from '../lib/coupon'
-import { useCartStore } from '../store/useCartStore'
+import { Seo } from '../components/Seo'
+import { toast } from '../lib/notifications'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
 }
 
 export function CartPage() {
-  const serverCart = useCartStore((s) => s.serverCart)
-  const updateLineQuantity = useCartStore((s) => s.updateLineQuantity)
-  const removeLine = useCartStore((s) => s.removeLine)
+  const { data: serverCart, isPending: cartPending, isError: cartError } = useCartQuery()
+  const updateLineMu = useUpdateCartLineMutation()
+  const removeLineMu = useRemoveCartLineMutation()
+  const couponMu = useMutation({
+    mutationFn: ({ code, subTotal }: { code: string; subTotal: number }) => validateCoupon(code, subTotal),
+  })
   const [couponInput, setCouponInput] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const [appliedCode, setAppliedCode] = useState<string | null>(null)
@@ -22,37 +27,59 @@ export function CartPage() {
 
   const estimatedTotal = Math.max(0, subTotal - appliedDiscount)
 
-  const handleApplyCoupon = async () => {
+  const handleApplyCoupon = () => {
     if (!couponInput.trim()) {
       toast.error('Enter a coupon code.')
       return
     }
-    try {
-      const res = await validateCoupon(couponInput.trim(), subTotal)
-      if (!res.isValid) {
-        toast.error(res.message)
-        setAppliedDiscount(0)
-        setAppliedCode(null)
-        return
-      }
-      setAppliedDiscount(res.discountAmount)
-      setAppliedCode(res.code ?? couponInput.trim())
-      toast.success(res.message)
-    } catch {
-      toast.error('Could not validate coupon.')
-    }
+    couponMu.mutate(
+      { code: couponInput.trim(), subTotal },
+      {
+        onSuccess: (res) => {
+          if (!res.isValid) {
+            toast.error(res.message)
+            setAppliedDiscount(0)
+            setAppliedCode(null)
+            return
+          }
+          setAppliedDiscount(res.discountAmount)
+          setAppliedCode(res.code ?? couponInput.trim())
+          toast.success(res.message)
+        },
+        onError: () => {
+          toast.error('Could not validate coupon.')
+        },
+      },
+    )
   }
 
-  if (!serverCart) {
+  if (cartPending) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Cart" description="Loading your shopping cart…" />
         <p>Loading cart…</p>
+      </div>
+    )
+  }
+
+  if (cartError || !serverCart) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Cart" description="Your shopping cart could not be loaded." />
+        <p className="text-rose-600">Could not load your cart.</p>
+        <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
+          Continue shopping
+        </Link>
       </div>
     )
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <Seo
+        title="Shopping cart"
+        description="Review items, apply coupons, and proceed to checkout on TechVault."
+      />
       <h1 className="text-2xl font-semibold text-slate-900">Shopping cart</h1>
       {lines.length === 0 ? (
         <p className="mt-8 text-slate-600">
@@ -97,14 +124,14 @@ export function CartPage() {
                         if (Number.isNaN(v) || v < 1) {
                           return
                         }
-                        void updateLineQuantity(line.productId, line.cartItemId, v)
+                        updateLineMu.mutate({ productId: line.productId, cartItemId: line.cartItemId, quantity: v })
                       }}
                       className="w-20 rounded border border-slate-300 px-2 py-1 text-sm"
                     />
                     <button
                       type="button"
                       className="text-sm text-red-600 hover:underline"
-                      onClick={() => void removeLine(line.productId, line.cartItemId)}
+                      onClick={() => removeLineMu.mutate({ productId: line.productId, cartItemId: line.cartItemId })}
                     >
                       Remove
                     </button>
@@ -151,7 +178,7 @@ export function CartPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => void handleApplyCoupon()}
+                  onClick={() => handleApplyCoupon()}
                   className="rounded bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900"
                 >
                   Apply

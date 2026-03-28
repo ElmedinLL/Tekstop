@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using TechVault.API.Data;
 using TechVault.API.Models;
 using TechVault.API.Models.Enums;
@@ -9,7 +10,8 @@ namespace TechVault.API.Services;
 public sealed class OrderService(
     ApplicationDbContext db,
     IDomainUserService domainUserService,
-    ICouponValidationService couponValidationService) : IOrderService
+    ICouponValidationService couponValidationService,
+    ILogger<OrderService> logger) : IOrderService
 {
     private const decimal StandardShipping = 9.99m;
     private const decimal ExpressShipping = 19.99m;
@@ -186,6 +188,17 @@ public sealed class OrderService(
 
             await db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Order placed: {OrderId} {OrderNumber} {Total} {Currency} {OrderStatus} {LineItemCount} {PaymentMethod} {CouponApplied}",
+                order.Id,
+                order.OrderNumber,
+                order.Total,
+                order.Currency,
+                order.Status,
+                cartItems.Count,
+                order.PaymentMethod,
+                couponCode is not null);
 
             return await MapOrderDtoAsync(order.Id, identityUserId, cancellationToken)
                 ?? throw new InvalidOperationException("Order could not be loaded.");

@@ -2,21 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { api } from '../lib/api'
 import { fetchProductReviews } from '../lib/reviews'
-import type { ProductDetail } from '../types/product'
 import { notifyCartAdded, notifyCartError } from '../lib/notifications'
 import { ProductImageGallery } from '../components/ProductImageGallery'
 import { ReviewForm } from '../components/ReviewForm'
 import { ReviewList } from '../components/ReviewList'
 import { flyToCart } from '../lib/flyToCart'
 import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
+import { useAddCartItemMutation } from '../hooks/useCart'
+import { Seo } from '../components/Seo'
+import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
+import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { fetchProductDetail } from '../hooks/useProduct'
+import { toast } from '../lib/notifications'
+import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
+import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
 import { useCartStore } from '../store/useCartStore'
-
-async function fetchProductById(id: number): Promise<ProductDetail> {
-  const { data } = await api.get<ProductDetail>(`/products/${id}`)
-  return data
-}
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
@@ -34,7 +35,7 @@ export function ProductDetailPage() {
     error,
   } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => fetchProductById(id),
+    queryFn: () => fetchProductDetail(id),
     enabled: validId,
   })
 
@@ -57,12 +58,21 @@ export function ProductDetailPage() {
 
   const [quantity, setQuantity] = useState(1)
   const addToCartBtnRef = useRef<HTMLButtonElement>(null)
-  const addItem = useCartStore((s) => s.addItem)
+  const addCartMu = useAddCartItemMutation()
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
+  const compareToggle = useCompareStore((s) => s.toggle)
+  const inCompare = useCompareStore((s) => s.has(id))
+  const recordProductView = useRecentlyViewedStore((s) => s.recordView)
 
   useEffect(() => {
     setQuantity(1)
   }, [id])
+
+  useEffect(() => {
+    if (product?.id) {
+      recordProductView(product.id)
+    }
+  }, [product?.id, recordProductView])
 
   const maxQty = product?.stock ?? 0
   const inStock = maxQty > 0
@@ -86,6 +96,7 @@ export function ProductDetailPage() {
   if (!validId) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Invalid product" description="This product link is not valid." />
         <h1 className="text-xl font-semibold text-slate-900">Invalid product</h1>
         <p className="mt-2 text-slate-600">Check the link and try again.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -98,6 +109,7 @@ export function ProductDetailPage() {
   if (isPending) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
+        <Seo title="Product" description="Loading product details…" />
         <div className="animate-pulse space-y-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
           <div className="aspect-[4/3] rounded-xl bg-slate-200" />
           <div className="space-y-4">
@@ -113,6 +125,7 @@ export function ProductDetailPage() {
   if (notFound || isError) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Product not found" description="This product is unavailable or may have been removed." />
         <h1 className="text-xl font-semibold text-slate-900">Product not found</h1>
         <p className="mt-2 text-slate-600">This product may have been removed or is unavailable.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -131,7 +144,7 @@ export function ProductDetailPage() {
       return
     }
     try {
-      await addItem(product.id, quantity)
+      await addCartMu.mutateAsync({ productId: product.id, quantity })
       flyToCart(addToCartBtnRef.current)
       setCartDrawerOpen(true)
       notifyCartAdded(product.name)
@@ -140,8 +153,23 @@ export function ProductDetailPage() {
     }
   }
 
+  const pageUrl = `${getSiteOrigin()}/products/${product.id}`
+  const metaDesc = productDescriptionForMeta(product)
+  const ogImage =
+    product.images.length > 0 ? resolveApiAssetUrl(product.images[0]) : undefined
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <Seo
+        title={product.name}
+        description={metaDesc}
+        productOpenGraph={{
+          title: product.name,
+          description: metaDesc,
+          url: pageUrl,
+          image: ogImage || undefined,
+        }}
+      />
       <nav className="mb-8 text-sm text-slate-500" aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center gap-2">
           <li>
@@ -228,6 +256,28 @@ export function ProductDetailPage() {
               }`}
             >
               {inStock ? 'Add to cart' : 'Unavailable'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const r = compareToggle(product.id)
+                if (r === 'added') {
+                  toast.success('Added to compare')
+                } else if (r === 'removed') {
+                  toast.success('Removed from compare')
+                } else if (r === 'full') {
+                  toast.error(`You can compare up to ${COMPARE_MAX} products.`, {
+                    description: 'Remove one from your list on the Compare page.',
+                  })
+                }
+              }}
+              className={`rounded-lg border px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                inCompare
+                  ? 'border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                  : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              {inCompare ? 'In compare' : 'Add to compare'}
             </button>
           </div>
         </div>

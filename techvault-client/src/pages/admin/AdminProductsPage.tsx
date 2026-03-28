@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { Seo } from '../../components/Seo'
 import { useQuery } from '@tanstack/react-query'
 import { Pagination } from '../../components/Pagination'
 import { fetchAdminProducts } from '../../lib/admin'
@@ -133,6 +134,10 @@ export function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
+      <Seo
+        title="Admin products"
+        description="Manage TechVault catalog: search, sort, publish, and edit products."
+      />
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Products</h1>

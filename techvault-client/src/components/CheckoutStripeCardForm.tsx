@@ -22,7 +22,7 @@ type CheckoutStripeCardFormProps = {
   shippingMethod: 'standard' | 'express'
   appliedCode: string | null
   serverCart: CartDto | null
-  fetchCart: () => Promise<void>
+  refetchCart: () => Promise<void>
   onSuccess: (orderId: number) => void
   onBack: () => void
 }
@@ -32,7 +32,7 @@ export function CheckoutStripeCardForm({
   shippingMethod,
   appliedCode,
   serverCart,
-  fetchCart,
+  refetchCart,
   onSuccess,
   onBack,
 }: CheckoutStripeCardFormProps) {
@@ -92,7 +92,7 @@ export function CheckoutStripeCardForm({
       }
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-        await fetchCart()
+        await refetchCart()
         onSuccess(order.id)
         return
       }

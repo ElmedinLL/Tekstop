@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Admin;
@@ -9,7 +10,8 @@ using TechVault.API.Users;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/admin/users")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/admin/users")]
 [Authorize(Roles = "Admin")]
 public sealed class AdminUsersController(IAdminUserService adminUserService) : ControllerBase
 {

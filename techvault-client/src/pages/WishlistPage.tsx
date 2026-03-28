@@ -8,6 +8,8 @@ import {
 import { ProductGrid } from '../components/ProductGrid'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { fetchWishlist, removeFromWishlist } from '../lib/wishlist'
+import { useAddCartItemMutation } from '../hooks/useCart'
+import { Seo } from '../components/Seo'
 import { useCartStore } from '../store/useCartStore'
 
 function formatMoney(n: number) {
@@ -16,7 +18,7 @@ function formatMoney(n: number) {
 
 export function WishlistPage() {
   const queryClient = useQueryClient()
-  const addItem = useCartStore((s) => s.addItem)
+  const addCartMu = useAddCartItemMutation()
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   const { data, isPending, isError } = useQuery({
@@ -35,7 +37,7 @@ export function WishlistPage() {
 
   const moveMu = useMutation({
     mutationFn: async (productId: number) => {
-      await addItem(productId, 1)
+      await addCartMu.mutateAsync({ productId, quantity: 1 })
       await removeFromWishlist(productId)
     },
     onSuccess: () => {
@@ -51,6 +53,7 @@ export function WishlistPage() {
   if (isError) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10">
+        <Seo title="Wishlist" description="Your saved items could not be loaded." noindex />
         <h1 className="text-2xl font-semibold text-slate-900">Wishlist</h1>
         <p className="mt-4 text-sm text-rose-600">Could not load your wishlist.</p>
       </div>
@@ -60,6 +63,7 @@ export function WishlistPage() {
   if (isPending) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10">
+        <Seo title="Wishlist" description="Loading your wishlist…" noindex />
         <h1 className="text-2xl font-semibold text-slate-900">Wishlist</h1>
         <p className="mt-1 text-sm text-slate-600">Items you save for later appear here.</p>
         <div className="mt-8">
@@ -72,6 +76,7 @@ export function WishlistPage() {
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10">
+        <Seo title="Wishlist" description="Save products to your TechVault wishlist for later." noindex />
         <h1 className="text-2xl font-semibold text-slate-900">Wishlist</h1>
         <p className="mt-1 text-sm text-slate-600">Items you save for later appear here.</p>
         <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
@@ -90,6 +95,7 @@ export function WishlistPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      <Seo title="Wishlist" description="Your saved products on TechVault." noindex />
       <h1 className="text-2xl font-semibold text-slate-900">Wishlist</h1>
       <p className="mt-1 text-sm text-slate-600">{items.length} saved item{items.length === 1 ? '' : 's'}</p>
 

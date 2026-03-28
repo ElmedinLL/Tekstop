@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
@@ -61,6 +62,9 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 md:flex">
+      <Helmet>
+        <meta name="robots" content="noindex,nofollow" />
+      </Helmet>
       {mobileNavOpen && (
         <button
           type="button"

@@ -1,10 +1,12 @@
 using System.Linq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using TechVault.API.Data;
 using TechVault.API.Auth;
 using TechVault.API.Models.Enums;
@@ -13,13 +15,15 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     IJwtTokenService jwtTokenService,
     AuthDbContext authDbContext,
-    IDomainUserService domainUserService)
+    IDomainUserService domainUserService,
+    ILogger<AuthController> logger)
     : ControllerBase
 {
     [Authorize]
@@ -132,6 +136,8 @@ public class AuthController(
                 return ValidationProblem(ModelState);
             }
 
+            logger.LogInformation("User registered: {UserId} {Email}", user.Id, user.Email);
+
             return Ok(await IssueTokensAndPersistRefreshAsync(user));
         }
         catch
@@ -179,6 +185,8 @@ public class AuthController(
         {
             await userManager.ResetAccessFailedCountAsync(user);
         }
+
+        logger.LogInformation("User login: {UserId} {Email}", user.Id, user.Email);
 
         return Ok(await IssueTokensAndPersistRefreshAsync(user));
     }

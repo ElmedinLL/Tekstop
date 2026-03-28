@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -10,7 +11,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/payments")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/payments")]
 public sealed class PaymentController(
     IPaymentService paymentService,
     IOptions<StripeSettings> stripeOptions) : ControllerBase

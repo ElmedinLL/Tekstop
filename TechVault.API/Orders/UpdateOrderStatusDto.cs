@@ -1,11 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace TechVault.API.Orders;
 
 public sealed class UpdateOrderStatusDto
 {
     /// <summary>Target order status name (e.g. Paid, Processing, Shipped, Delivered, Cancelled).</summary>
-    [Required]
     public string Status { get; set; } = null!;
 
     /// <summary>Required when status is Shipped: HTTPS tracking URL (same rules as POST /ship).</summary>

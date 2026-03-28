@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Seo } from '../components/Seo'
 import { fetchOrder } from '../lib/orders'
 
 function formatMoney(n: number) {
@@ -24,6 +25,7 @@ export function OrderConfirmationPage() {
   if (!valid) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Order confirmation" description="Invalid order confirmation link." noindex />
         <p className="text-slate-600">Invalid order.</p>
         <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
           Home
@@ -35,6 +37,7 @@ export function OrderConfirmationPage() {
   if (isPending) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Order confirmation" description="Loading your order confirmation…" noindex />
         Loading order…
       </div>
     )
@@ -43,6 +46,7 @@ export function OrderConfirmationPage() {
   if (isError || !order) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Order confirmation" description="Your order confirmation could not be loaded." noindex />
         <p className="text-slate-600">We could not load this order.</p>
         <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
           Home
@@ -58,6 +62,11 @@ export function OrderConfirmationPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
+      <Seo
+        title={`Order ${order.orderNumber} confirmed`}
+        description="Your TechVault purchase is confirmed. Review your order summary and estimated delivery."
+        noindex
+      />
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-6 py-8 text-center">
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">Thank you</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">Your order is confirmed</h1>

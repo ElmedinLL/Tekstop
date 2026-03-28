@@ -1,3 +1,4 @@
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Admin;
@@ -6,7 +7,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/admin/stats")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/admin/stats")]
 [Authorize(Roles = "Admin")]
 public sealed class AdminStatsController(IAdminStatsService adminStatsService) : ControllerBase
 {

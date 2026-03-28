@@ -1,9 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { ProductCard } from '../components/ProductCard'
 import { ProductGrid } from '../components/ProductGrid'
+import { Seo } from '../components/Seo'
+import { fetchProductDetail } from '../hooks/useProduct'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
 import type { CategoryListItem } from '../types/category'
 import type { PagedProductsResponse, ProductListItem } from '../types/product'
 
@@ -32,6 +35,17 @@ async function fetchCategories(): Promise<CategoryListItem[]> {
 }
 
 export function HomePage() {
+  const recentIds = useRecentlyViewedStore((s) => s.ids)
+
+  const recentProductQueries = useQueries({
+    queries: recentIds.map((id) => ({
+      queryKey: ['product', id] as const,
+      queryFn: () => fetchProductDetail(id),
+      enabled: id > 0,
+      staleTime: 60_000,
+    })),
+  })
+
   const {
     data: featured,
     isPending: featuredPending,
@@ -78,6 +92,10 @@ export function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <Seo
+        title="Home"
+        description="Shop featured tech, best sellers, and new arrivals. Browse categories and find your next upgrade on TechVault."
+      />
       {/* Hero */}
       <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-600 via-sky-600 to-slate-900 p-0 text-white shadow-sm">
         <div className="grid gap-6 p-8 md:grid-cols-[1.3fr,0.7fr] md:items-center">
@@ -134,6 +152,65 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Recently viewed */}
+      {recentIds.length > 0 && (
+        <section className="mt-10" aria-labelledby="recently-viewed-heading">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 id="recently-viewed-heading" className="text-xl font-semibold tracking-tight text-slate-900">
+                Recently viewed
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">Pick up where you left off.</p>
+            </div>
+          </div>
+
+          <div className="relative mt-6">
+            <div
+              className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:thin] sm:mx-0 sm:px-0"
+              role="list"
+              aria-label="Recently viewed products"
+            >
+              {recentIds.map((rid, i) => {
+                const q = recentProductQueries[i]
+                if (q?.isPending) {
+                  return (
+                    <div
+                      key={rid}
+                      role="listitem"
+                      className="w-[min(100%,280px)] shrink-0 snap-start sm:w-64"
+                    >
+                      <div className="h-[340px] animate-pulse rounded-xl border border-slate-200 bg-white shadow-sm" />
+                    </div>
+                  )
+                }
+                if (!q?.data) {
+                  return null
+                }
+                const p = q.data
+                const thumb = p.images[0] ? resolveApiAssetUrl(p.images[0]) : null
+                return (
+                  <div
+                    key={rid}
+                    role="listitem"
+                    className="w-[min(100%,280px)] shrink-0 snap-start sm:w-64"
+                  >
+                    <ProductCard
+                      id={p.id}
+                      name={p.name}
+                      imageUrl={thumb}
+                      price={p.price}
+                      compareAtPrice={p.compareAtPrice ?? null}
+                      stockQuantity={p.stock}
+                      productTo={`/products/${p.id}`}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Categories */}
       <section className="mt-10">

@@ -16,6 +16,7 @@ import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { fetchOrderList } from '../lib/orders'
 import { changePassword, fetchUserProfile, updateUserProfile, uploadUserAvatar } from '../lib/users'
 import { fetchWishlist, removeFromWishlist } from '../lib/wishlist'
+import { Seo } from '../components/Seo'
 
 const TAB_IDS = ['personal', 'orders', 'wishlist', 'password'] as const
 type TabId = (typeof TAB_IDS)[number]
@@ -64,6 +65,11 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <Seo
+        title="Account"
+        description="Manage your TechVault profile, orders, wishlist, and password."
+        noindex
+      />
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Profile</h1>
       <p className="mt-1 text-sm text-slate-600">Manage your account, orders, wishlist, and security.</p>
 

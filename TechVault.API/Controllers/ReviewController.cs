@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Http;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/products/{productId:int}/reviews")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/products/{productId:int}/reviews")]
 public sealed class ReviewController(
     ApplicationDbContext db,
     IDomainUserService domainUserService,
@@ -193,7 +196,10 @@ public sealed class ReviewController(
             AuthorDisplayName = FormatAuthorDisplayName(user.FirstName, user.LastName)
         };
 
-        return CreatedAtAction(nameof(List), new { productId }, response);
+        return CreatedAtAction(
+            nameof(List),
+            new { version = HttpContext.GetRequestedApiVersion()!.ToString(), productId },
+            response);
     }
 
     /// <summary>Deletes the current user&apos;s review for this product.</summary>

@@ -1,8 +1,10 @@
 using System.Globalization;
 using AutoMapper;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TechVault.API.Caching;
 using TechVault.API.Models;
 using TechVault.API.Products;
 using TechVault.API.Repositories;
@@ -12,13 +14,15 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/products")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/products")]
 public sealed class ProductsController(
     IRepository<Product> productRepository,
     IRepository<Category> categoryRepository,
     IRepository<ProductImage> productImageRepository,
     IProductRepository productCatalog,
     IAdminProductService adminProductService,
+    ICatalogListCache catalogListCache,
     IMapper mapper,
     IWebHostEnvironment webHostEnvironment) : ControllerBase
 {
@@ -143,6 +147,12 @@ public sealed class ProductsController(
             return BadRequest("minPrice cannot be greater than maxPrice.");
         }
 
+        var cacheKey = catalogListCache.CreateProductListKey(query);
+        if (catalogListCache.TryGetProductList(cacheKey, out var cachedList) && cachedList is not null)
+        {
+            return Ok(cachedList);
+        }
+
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize < 1 ? DefaultPageSize : Math.Min(query.PageSize, MaxPageSize);
         var sortKey = query.Sort?.Trim().ToLowerInvariant() ?? "newest";
@@ -180,14 +190,16 @@ public sealed class ProductsController(
         var items = mapper.Map<IReadOnlyList<ProductListItemDto>>(result.Items);
         var totalPages = result.TotalCount == 0 ? 0 : (int)Math.Ceiling(result.TotalCount / (double)result.PageSize);
 
-        return Ok(new PagedProductsResponse
+        var paged = new PagedProductsResponse
         {
             Items = items,
             TotalCount = result.TotalCount,
             Page = result.PageNumber,
             PageSize = result.PageSize,
             TotalPages = totalPages
-        });
+        };
+        catalogListCache.SetProductList(cacheKey, paged);
+        return Ok(paged);
     }
 
     /// <summary>Creates a product (admin).</summary>
@@ -202,6 +214,7 @@ public sealed class ProductsController(
         try
         {
             var product = await adminProductService.CreateAsync(dto, cancellationToken);
+            catalogListCache.InvalidateCatalogLists();
             var detail = await productCatalog.GetByIdAsync(product.Id, cancellationToken);
             return StatusCode(StatusCodes.Status201Created, mapper.Map<ProductDto>(detail!));
         }
@@ -234,6 +247,7 @@ public sealed class ProductsController(
                 return NotFound();
             }
 
+            catalogListCache.InvalidateCatalogLists();
             var detail = await productCatalog.GetByIdAsync(product.Id, cancellationToken);
             return Ok(mapper.Map<ProductDto>(detail!));
         }
@@ -322,6 +336,8 @@ public sealed class ProductsController(
         await productImageRepository.AddAsync(entity, cancellationToken);
         await productImageRepository.SaveChangesAsync(cancellationToken);
 
+        catalogListCache.InvalidateCatalogLists();
+
         return StatusCode(StatusCodes.Status201Created,
             new ProductImageUploadResponse { Id = entity.Id, Url = entity.Url, SortOrder = entity.SortOrder });
     }
@@ -334,6 +350,11 @@ public sealed class ProductsController(
     public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
     {
         var result = await productCatalog.SoftDeleteAsync(id, cancellationToken);
+        if (result == ProductSoftDeleteResult.Deleted)
+        {
+            catalogListCache.InvalidateCatalogLists();
+        }
+
         return result switch
         {
             ProductSoftDeleteResult.NotFound => NotFound(),

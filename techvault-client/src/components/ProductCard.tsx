@@ -6,8 +6,10 @@ import {
   notifyWishlistAuthRequired,
   notifyWishlistError,
   notifyWishlistToggled,
+  toast,
 } from '../lib/notifications'
 import { addToWishlist, fetchWishlist, removeFromWishlist } from '../lib/wishlist'
+import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 
 export type ProductCardProps = {
   id: number | string
@@ -32,6 +34,8 @@ export type ProductCardProps = {
    * Example: "probook" will highlight matching substrings within `name`.
    */
   highlightQuery?: string | null
+  /** Show compare control (max 3 products). Default true. */
+  showCompare?: boolean
 }
 
 const priceFormatter = (currency: string) =>
@@ -140,6 +144,15 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
+function CompareIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path strokeLinecap="round" d="M4 7h6M4 12h10M4 17h8" />
+      <path strokeLinecap="round" d="M14 7h6M16 12h4M18 17h2" />
+    </svg>
+  )
+}
+
 function HeartIcon({ filled, className = '' }: { filled: boolean; className?: string }) {
   return (
     <svg
@@ -174,16 +187,20 @@ export function ProductCard({
   onWishlistChange,
   className = '',
   highlightQuery = null,
+  showCompare = true,
 }: ProductCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const [heartPop, setHeartPop] = useState(false)
   const { isAuthenticated, isInitializing } = useAuth()
+  const compareToggle = useCompareStore((s) => s.toggle)
   const queryClient = useQueryClient()
 
   const productIdNum = useMemo(() => {
     const n = typeof id === 'number' ? id : Number.parseInt(String(id), 10)
     return Number.isFinite(n) && n > 0 ? n : null
   }, [id])
+
+  const inCompare = useCompareStore((s) => productIdNum != null && s.has(productIdNum))
 
   const wishlistQuery = useQuery({
     queryKey: ['wishlist'],
@@ -239,6 +256,22 @@ export function ProductCard({
     wishlistToggleMu.mutate()
   }
 
+  const handleCompareClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (productIdNum == null) {
+      return
+    }
+    const r = compareToggle(productIdNum)
+    if (r === 'added') {
+      toast.success('Added to compare')
+    } else if (r === 'removed') {
+      toast.success('Removed from compare')
+    } else if (r === 'full') {
+      toast.error(`You can compare up to ${COMPARE_MAX} products.`)
+    }
+  }
+
   const imageBlock = (
     <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl bg-slate-100">
       {imageUrl && !imgFailed ? (
@@ -260,6 +293,20 @@ export function ProductCard({
         <span className="absolute left-2 top-2 rounded bg-slate-900/85 px-2 py-0.5 text-xs font-medium text-white">
           Out of stock
         </span>
+      )}
+      {showCompare && (
+        <button
+          type="button"
+          onClick={handleCompareClick}
+          disabled={productIdNum == null}
+          className={`absolute bottom-2 left-2 rounded-full bg-white/95 p-2 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 ${
+            inCompare ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'
+          }`}
+          aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
+          aria-pressed={inCompare}
+        >
+          <CompareIcon className="h-5 w-5" />
+        </button>
       )}
       <button
         type="button"

@@ -7,7 +7,9 @@ import { ProductGrid } from '../components/ProductGrid'
 import { api } from '../lib/api'
 import { buildCategoryProductsApiParams, normalizeSortParam } from '../lib/categoryPageParams'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { Seo } from '../components/Seo'
 import { ProductFilterKeys } from '../lib/productFilterParams'
+import { truncateMetaText } from '../lib/siteMeta'
 import type { CategoryDetail } from '../types/category'
 import type { PagedProductsResponse } from '../types/product'
 
@@ -110,6 +112,7 @@ export function CategoryPage() {
   if (!validSlug) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Invalid category" description="This category link is not valid." />
         <h1 className="text-xl font-semibold text-slate-900">Invalid category</h1>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
           Back to home
@@ -121,6 +124,7 @@ export function CategoryPage() {
   if (categoryNotFound) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Category not found" description="This category does not exist or was removed." />
         <h1 className="text-xl font-semibold text-slate-900">Category not found</h1>
         <p className="mt-2 text-slate-600">This category does not exist or was removed.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -133,6 +137,10 @@ export function CategoryPage() {
   if (productsNotFound) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo
+          title={category?.name ? `${category.name} — unavailable` : 'Category'}
+          description="Products for this category could not be loaded."
+        />
         <h1 className="text-xl font-semibold text-slate-900">Nothing here</h1>
         <p className="mt-2 text-slate-600">Products for this category could not be loaded.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -142,8 +150,15 @@ export function CategoryPage() {
     )
   }
 
+  const categoryDesc = category?.description?.trim()
+    ? truncateMetaText(category.description.trim(), 160)
+    : category
+      ? `Browse ${category.productCount} products in ${category.name} on TechVault.`
+      : 'Browse products by category on TechVault.'
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <Seo title={category?.name ?? 'Category'} description={categoryDesc} />
       <nav className="mb-6 text-sm text-slate-500" aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center gap-2">
           <li>

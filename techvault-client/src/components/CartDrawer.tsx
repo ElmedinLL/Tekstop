@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
-import { useCartStore } from '../store/useCartStore'
+import { useCartQuery } from '../hooks/useCart'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
@@ -12,7 +12,7 @@ type CartDrawerProps = {
 }
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
-  const serverCart = useCartStore((s) => s.serverCart)
+  const { data: serverCart } = useCartQuery()
   const lines = serverCart?.lines ?? []
   const subTotal = serverCart?.subTotal ?? 0
 

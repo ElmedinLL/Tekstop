@@ -41,11 +41,25 @@ public sealed class ExceptionHandlingMiddleware(
 
         if (statusCode >= 500)
         {
-            logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
+            logger.LogError(
+                exception,
+                "Unhandled exception {ExceptionType} → HTTP {StatusCode} {Method} {Path}: {Message}",
+                exception.GetType().Name,
+                statusCode,
+                context.Request.Method,
+                context.Request.Path,
+                exception.Message);
         }
         else
         {
-            logger.LogWarning(exception, "Request failed: {Message}", message);
+            logger.LogWarning(
+                exception,
+                "Client or domain error {ExceptionType} → HTTP {StatusCode} {Method} {Path}: {Message}",
+                exception.GetType().Name,
+                statusCode,
+                context.Request.Method,
+                context.Request.Path,
+                message);
         }
 
         context.Response.StatusCode = statusCode;

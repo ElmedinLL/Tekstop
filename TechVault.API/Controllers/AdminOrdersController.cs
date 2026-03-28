@@ -1,3 +1,4 @@
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Models.Enums;
@@ -7,7 +8,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/admin/orders")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/admin/orders")]
 [Authorize(Roles = "Admin")]
 public sealed class AdminOrdersController(IAdminOrderService adminOrderService) : ControllerBase
 {

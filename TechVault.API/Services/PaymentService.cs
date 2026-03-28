@@ -71,6 +71,13 @@ public sealed class PaymentService(
 
         var intent = await service.CreateAsync(options, requestOptions: null, cancellationToken);
 
+        logger.LogInformation(
+            "Stripe payment intent created for order {OrderId}: {PaymentIntentId} {AmountCents} {Currency}",
+            orderId,
+            intent.Id,
+            intent.Amount,
+            intent.Currency);
+
         return new PaymentIntentCreateResult
         {
             PaymentIntentId = intent.Id,
@@ -103,7 +110,14 @@ public sealed class PaymentService(
             PaymentMethod = paymentMethodId
         };
 
-        return await service.ConfirmAsync(paymentIntentId, options, requestOptions: null, cancellationToken);
+        var confirmed = await service.ConfirmAsync(paymentIntentId, options, requestOptions: null, cancellationToken);
+
+        logger.LogInformation(
+            "Stripe payment intent confirmed: {PaymentIntentId} {Status}",
+            paymentIntentId,
+            confirmed.Status);
+
+        return confirmed;
     }
 
     public async Task HandleWebhookAsync(Event stripeEvent, CancellationToken cancellationToken = default)
@@ -176,6 +190,13 @@ public sealed class PaymentService(
 
             throw;
         }
+
+        logger.LogInformation(
+            "Order paid via Stripe webhook: {OrderId} {OrderNumber} {PaymentIntentId} {AmountCents}",
+            order.Id,
+            order.OrderNumber,
+            pi.Id,
+            pi.Amount);
 
         try
         {

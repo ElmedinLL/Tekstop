@@ -1,4 +1,5 @@
 using AutoMapper;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Products;
@@ -8,7 +9,8 @@ using TechVault.API.Services;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/admin/products")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/admin/products")]
 [Authorize(Roles = "Admin")]
 public sealed class AdminProductsController(
     ILowStockInventoryService lowStockInventoryService,

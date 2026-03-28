@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Asp.Versioning.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ using TechVault.API.Wishlist;
 namespace TechVault.API.Controllers;
 
 [ApiController]
-[Route("api/wishlist")]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/wishlist")]
 [Authorize]
 public sealed class WishlistController(
     ApplicationDbContext db,
