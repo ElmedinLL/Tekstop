@@ -12,6 +12,9 @@ import { ReviewList } from '../components/ReviewList'
 import { flyToCart } from '../lib/flyToCart'
 import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
 import { useAddCartItemMutation } from '../hooks/useCart'
+import { Seo } from '../components/Seo'
+import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
+import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { useCartStore } from '../store/useCartStore'
 
 async function fetchProductById(id: number): Promise<ProductDetail> {
@@ -87,6 +90,7 @@ export function ProductDetailPage() {
   if (!validId) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Invalid product" description="This product link is not valid." />
         <h1 className="text-xl font-semibold text-slate-900">Invalid product</h1>
         <p className="mt-2 text-slate-600">Check the link and try again.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -99,6 +103,7 @@ export function ProductDetailPage() {
   if (isPending) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
+        <Seo title="Product" description="Loading product details…" />
         <div className="animate-pulse space-y-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
           <div className="aspect-[4/3] rounded-xl bg-slate-200" />
           <div className="space-y-4">
@@ -114,6 +119,7 @@ export function ProductDetailPage() {
   if (notFound || isError) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Product not found" description="This product is unavailable or may have been removed." />
         <h1 className="text-xl font-semibold text-slate-900">Product not found</h1>
         <p className="mt-2 text-slate-600">This product may have been removed or is unavailable.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
@@ -141,8 +147,23 @@ export function ProductDetailPage() {
     }
   }
 
+  const pageUrl = `${getSiteOrigin()}/products/${product.id}`
+  const metaDesc = productDescriptionForMeta(product)
+  const ogImage =
+    product.images.length > 0 ? resolveApiAssetUrl(product.images[0]) : undefined
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <Seo
+        title={product.name}
+        description={metaDesc}
+        productOpenGraph={{
+          title: product.name,
+          description: metaDesc,
+          url: pageUrl,
+          image: ogImage || undefined,
+        }}
+      />
       <nav className="mb-8 text-sm text-slate-500" aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center gap-2">
           <li>

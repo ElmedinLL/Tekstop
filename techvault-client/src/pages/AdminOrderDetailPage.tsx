@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Seo } from '../components/Seo'
 import { OrderTrackingTimeline } from '../components/OrderTrackingTimeline'
 import { toast } from '../lib/notifications'
 import { adminOrderDetailToTimelineSource } from '../lib/orderTimeline'
@@ -120,6 +121,7 @@ export function AdminOrderDetailPage() {
   if (!Number.isFinite(orderId)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
+        <Seo title="Admin order" description="Invalid order id." />
         <p className="text-red-600">Invalid order id.</p>
         <Link className="mt-4 inline-block text-blue-600 hover:underline" to="/admin/orders">
           Back to orders
@@ -128,8 +130,14 @@ export function AdminOrderDetailPage() {
     )
   }
 
+  const adminOrderSeoTitle = data?.orderNumber ? `Order ${data.orderNumber}` : 'Admin order'
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
+      <Seo
+        title={adminOrderSeoTitle}
+        description="Review and update order status, tracking, and fulfillment in TechVault admin."
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"

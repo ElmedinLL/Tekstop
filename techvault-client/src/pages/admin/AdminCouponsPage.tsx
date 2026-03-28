@@ -7,6 +7,7 @@ import {
   fetchAdminCoupons,
   updateAdminCoupon,
 } from '../../lib/adminCoupons'
+import { Seo } from '../../components/Seo'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
 import type { AdminCoupon, AdminDiscountType, CreateAdminCouponBody } from '../../types/adminCoupon'
 
@@ -158,6 +159,10 @@ export function AdminCouponsPage() {
 
   return (
     <div className="space-y-8">
+      <Seo
+        title="Admin coupons"
+        description="Create and manage discount codes and usage limits in TechVault admin."
+      />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Coupons</h1>
         <p className="mt-1 text-sm text-slate-600">Create discount codes with rules and usage limits.</p>

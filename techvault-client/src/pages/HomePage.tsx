@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { ProductCard } from '../components/ProductCard'
 import { ProductGrid } from '../components/ProductGrid'
+import { Seo } from '../components/Seo'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import type { CategoryListItem } from '../types/category'
 import type { PagedProductsResponse, ProductListItem } from '../types/product'
@@ -78,6 +79,10 @@ export function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <Seo
+        title="Home"
+        description="Shop featured tech, best sellers, and new arrivals. Browse categories and find your next upgrade on TechVault."
+      />
       {/* Hero */}
       <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-600 via-sky-600 to-slate-900 p-0 text-white shadow-sm">
         <div className="grid gap-6 p-8 md:grid-cols-[1.3fr,0.7fr] md:items-center">

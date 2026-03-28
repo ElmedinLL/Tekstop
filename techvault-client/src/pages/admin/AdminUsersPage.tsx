@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useAuth } from '../../auth/AuthContext'
 import { Pagination } from '../../components/Pagination'
+import { Seo } from '../../components/Seo'
 import { fetchAdminUsers, setAdminUserBanned } from '../../lib/adminUsers'
 import { resolveApiAssetUrl } from '../../lib/assetUrl'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
@@ -178,6 +179,10 @@ export function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+      <Seo
+        title="Admin users"
+        description="Manage TechVault user accounts, roles, and sign-in lockout."
+      />
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Users</h1>

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, type Location } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { useAuth } from '../auth/AuthContext'
+import { Seo } from '../components/Seo'
 import { evaluatePasswordStrength, passwordStrengthCriteriaLabels } from '../lib/passwordStrength'
 
 type FieldErrors = {
@@ -147,6 +148,7 @@ export function RegisterPage() {
   if (isInitializing) {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-4 py-16">
+        <Seo title="Create account" description="Checking your session…" noindex />
         <p className="text-sm text-slate-500" role="status">
           Checking session…
         </p>
@@ -159,6 +161,11 @@ export function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-10">
+      <Seo
+        title="Create account"
+        description="Create a TechVault account to save addresses, track orders, and use your wishlist."
+        noindex
+      />
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Create account</h1>
       <p className="mt-1 text-sm text-slate-600">
         Already have an account?{' '}

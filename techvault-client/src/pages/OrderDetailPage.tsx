@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios'
 import { OrderStatusBadge } from '../components/OrderStatusBadge'
 import { OrderTrackingTimeline } from '../components/OrderTrackingTimeline'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { Seo } from '../components/Seo'
 import { cancelOrder, fetchOrder } from '../lib/orders'
 import type { OrderDto } from '../types/order'
 
@@ -69,6 +70,7 @@ export function OrderDetailPage() {
   if (!Number.isFinite(orderId) || orderId <= 0) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
+        <Seo title="Order" description="Invalid order." noindex />
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Order</h1>
         <p className="mt-2 text-slate-600">Invalid order id.</p>
         <Link className="mt-5 inline-block text-sm font-medium text-blue-600 hover:underline" to="/orders">
@@ -83,8 +85,16 @@ export function OrderDetailPage() {
   const notFound =
     isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 403)
 
+  const orderTitle =
+    order && !isPending && !isError ? `Order ${order.orderNumber}` : 'Order'
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <Seo
+        title={orderTitle}
+        description="View order status, items, and shipping details on TechVault."
+        noindex
+      />
       <Link className="text-sm font-medium text-blue-600 hover:underline" to="/orders">
         ← Back to orders
       </Link>

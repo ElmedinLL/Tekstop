@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useCartQuery, useRemoveCartLineMutation, useUpdateCartLineMutation } from '../hooks/useCart'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { validateCoupon } from '../lib/coupon'
+import { Seo } from '../components/Seo'
 import { toast } from '../lib/notifications'
 
 function formatMoney(n: number) {
@@ -55,6 +56,7 @@ export function CartPage() {
   if (cartPending) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Cart" description="Loading your shopping cart…" />
         <p>Loading cart…</p>
       </div>
     )
@@ -63,6 +65,7 @@ export function CartPage() {
   if (cartError || !serverCart) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Cart" description="Your shopping cart could not be loaded." />
         <p className="text-rose-600">Could not load your cart.</p>
         <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
           Continue shopping
@@ -73,6 +76,10 @@ export function CartPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <Seo
+        title="Shopping cart"
+        description="Review items, apply coupons, and proceed to checkout on TechVault."
+      />
       <h1 className="text-2xl font-semibold text-slate-900">Shopping cart</h1>
       {lines.length === 0 ? (
         <p className="mt-8 text-slate-600">

@@ -9,6 +9,7 @@ import {
   uploadCategoryImage,
 } from '../../lib/categories'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
+import { Seo } from '../../components/Seo'
 import { resolveApiAssetUrl } from '../../lib/assetUrl'
 import type { CategoryListItem } from '../../types/category'
 
@@ -200,6 +201,10 @@ export function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
+      <Seo
+        title="Admin categories"
+        description="Manage TechVault storefront categories and images."
+      />
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Categories</h1>

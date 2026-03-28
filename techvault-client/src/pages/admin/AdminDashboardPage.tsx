@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { Seo } from '../../components/Seo'
 import { OrderStatusBadge } from '../../components/OrderStatusBadge'
 import { fetchAdminLowStockProducts, fetchAdminOrders, fetchAdminStats } from '../../lib/admin'
 
@@ -68,6 +69,10 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+      <Seo
+        title="Admin dashboard"
+        description="TechVault admin: revenue, orders, and low-stock overview."
+      />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-600">Overview of revenue, orders, and inventory.</p>

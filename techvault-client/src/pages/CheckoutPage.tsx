@@ -11,6 +11,7 @@ import { validateCoupon } from '../lib/coupon'
 import { createOrder } from '../lib/orders'
 import { fetchAddresses, createAddress } from '../lib/addresses'
 import { stripePromise } from '../lib/stripeClient'
+import { Seo } from '../components/Seo'
 import { useCartQuery } from '../hooks/useCart'
 import type { AddressDto } from '../types/address'
 
@@ -138,6 +139,7 @@ export function CheckoutPage() {
   if (addressesLoading && step === 1) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center text-slate-600">
+        <Seo title="Checkout" description="Loading checkout…" noindex />
         Loading addresses…
       </div>
     )
@@ -145,6 +147,11 @@ export function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      <Seo
+        title="Checkout"
+        description="Complete your TechVault order: shipping, payment, and order review."
+        noindex
+      />
       <nav className="mb-6 text-sm text-slate-500">
         <Link to="/cart" className="text-blue-600 hover:underline">
           ← Back to cart

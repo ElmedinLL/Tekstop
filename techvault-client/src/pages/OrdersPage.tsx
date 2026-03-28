@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { OrderStatusBadge } from '../components/OrderStatusBadge'
+import { Seo } from '../components/Seo'
 import { fetchOrderList, type OrderSummary } from '../lib/orders'
 
 const statusOrder = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'] as const
@@ -40,6 +41,7 @@ export function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <Seo title="My orders" description="View and track your TechVault orders." noindex />
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">My Orders</h1>
       <p className="mt-2 text-slate-600">Track order status and open any order to see full details.</p>
 

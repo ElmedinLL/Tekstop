@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
+import { Seo } from '../../components/Seo'
 import { AdminProductImagesField } from '../../components/admin/AdminProductImagesField'
 import { ProductSpecsEditor, type SpecRow } from '../../components/admin/ProductSpecsEditor'
 import { createProduct, fetchAdminProduct, updateProduct, uploadProductImage } from '../../lib/adminProduct'
@@ -283,6 +284,14 @@ export function AdminProductFormPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-12">
+      <Seo
+        title={title}
+        description={
+          isCreate
+            ? 'Create a new product in the TechVault catalog.'
+            : 'Edit product details, pricing, and images in TechVault admin.'
+        }
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>

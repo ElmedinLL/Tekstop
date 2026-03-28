@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { HelmetProvider } from 'react-helmet-async'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider, QueryErrorResetBoundary } from '@tanstack/react-query'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -21,8 +22,10 @@ createRoot(document.getElementById('root')!).render(
           <ErrorBoundary FallbackComponent={QueryErrorFallback} onReset={reset}>
             <AuthProvider>
               <BrowserRouter>
-                <App />
-                <AppToaster />
+                <HelmetProvider>
+                  <App />
+                  <AppToaster />
+                </HelmetProvider>
               </BrowserRouter>
             </AuthProvider>
           </ErrorBoundary>
