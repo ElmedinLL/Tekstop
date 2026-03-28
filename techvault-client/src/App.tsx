@@ -4,6 +4,7 @@ import { AdminRoute } from './auth/AdminRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CartAuthBridge } from './components/CartAuthBridge'
 import { CartDrawer } from './components/CartDrawer'
+import { Footer } from './components/Footer'
 import { Navbar } from './components/Navbar'
 import { RoutePageSpinner } from './components/RoutePageSpinner'
 import { useCartStore } from './store/useCartStore'
@@ -63,6 +64,8 @@ const CheckoutPage = lazy(() =>
 const OrderConfirmationPage = lazy(() =>
   import('./pages/OrderConfirmationPage').then((m) => ({ default: m.OrderConfirmationPage })),
 )
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })))
+const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })))
 
 export default function App() {
   const location = useLocation()
@@ -104,6 +107,8 @@ export default function App() {
               }
             />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route
               path="/account"
               element={
@@ -159,6 +164,7 @@ export default function App() {
           </Routes>
         </Suspense>
       </main>
+      {!isAdminShell && <Footer />}
     </div>
   )
 }
