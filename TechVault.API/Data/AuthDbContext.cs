@@ -26,7 +26,7 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
             // Helps keep CreatedAt consistent even if you create users without setting the property explicitly.
             entity.Property(u => u.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("(UTC_TIMESTAMP(6))");
+                .HasDefaultValueSql("SYSUTCDATETIME()");
         });
 
         builder.Entity<RefreshToken>(entity =>

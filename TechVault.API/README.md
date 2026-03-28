@@ -5,7 +5,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4?logo=dotnet)](https://learn.microsoft.com/aspnet/core/)
 [![Entity Framework Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4?logo=dotnet)](https://learn.microsoft.com/ef/core/)
-[![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-Express%2FFull-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
 [![Swagger / OpenAPI](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://swagger.io/)
 
 ---
@@ -15,7 +15,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 | Area | Technology |
 |------|------------|
 | Runtime | .NET 8, ASP.NET Core Web API |
-| Data | EF Core 8, Pomelo MySQL provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity) |
+| Data | EF Core 8, SQL Server provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity) |
 | Auth | ASP.NET Core Identity, JWT Bearer, refresh tokens |
 | Validation | FluentValidation |
 | Payments | Stripe.net |
@@ -61,7 +61,7 @@ TechVault.API/
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- MySQL 8.x (local or remote)
+- **SQL Server LocalDB** (recommended for `dotnet run` — database is created automatically; ships with Visual Studio / Build Tools), or Microsoft SQL Server Express / full edition
 - Optional: [Stripe](https://stripe.com/) account for payments; SMTP for transactional email
 
 ---
@@ -79,19 +79,20 @@ TechVault.API/
 
    On Linux/macOS: `cp appsettings.example.json appsettings.json`
 
-3. **Configure MySQL**  
-   Set `ConnectionStrings:DefaultConnection` in `appsettings.json` (or use environment variables / user secrets) to point at your database.
+3. **Configure SQL Server**  
+   **Default (zero setup):** `launchSettings.json` sets `ConnectionStrings__DefaultConnection` to **LocalDB** (`(localdb)\\mssqllocaldb`). On first `dotnet run`, EF applies migrations and **creates `TechVaultDB` automatically** (your Windows user is admin on LocalDB).
+
+   **SQL Express / remote server instead:** Remove or override that environment variable and set `ConnectionStrings:DefaultConnection` in `appsettings.json` to your instance, e.g. `Server=YOUR_HOST\\SQLEXPRESS;Database=TechVaultDB;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=true`. If you get **CREATE DATABASE permission denied**, create the database and user mapping once using `Scripts/SqlExpress-SetupTechVault.sql` in SSMS as sysadmin.
 
 4. **JWT**  
    Set `Jwt:Secret` to a random string **at least 32 characters** (required at startup).
 
-5. **Apply EF Core migrations** (domain schema):
+5. **Apply EF Core migrations** (both contexts target the same database):
 
    ```bash
    dotnet ef database update --project TechVault.API.csproj --context ApplicationDbContext
+   dotnet ef database update --project TechVault.API.csproj --context AuthDbContext
    ```
-
-   If you maintain Identity migrations separately, apply `AuthDbContext` the same way when applicable.
 
 6. **Run the API**
 
@@ -109,17 +110,24 @@ TechVault.API/
 7. **Optional seed admin**  
    Set `IdentitySeed:AdminEmail` and `IdentitySeed:AdminPassword` in configuration so `IdentitySeeder` can create an **Admin** user on startup (see `appsettings.example.json`).
 
+### Troubleshooting: “Cannot open database TechVaultDB” / error 4060
+
+The server accepts your Windows login, but **your login is not allowed to use that database** (or the database was never created). Fix it once with **elevated rights** (sysadmin):
+
+1. Open **SQL Server Management Studio** (or Azure Data Studio) **as Administrator** if needed.
+2. Connect to your instance (e.g. `XHEVAT\SQLEXPRESS`) with Windows Authentication.
+3. Open and run **`Scripts/SqlExpress-SetupTechVault.sql`**, editing the `XHEVAT\elmedin` name if your Windows user string differs (check **Security → Logins** for the exact name).
+4. Restart the API. Migrations run automatically on startup (`Database.MigrateAsync`); you do not need to run `dotnet ef database update` manually unless you prefer to.
+
+**Prefer LocalDB for development** (default in `launchSettings.json`) to avoid permission issues: install [SQL Server Express LocalDB](https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb) if `(localdb)\mssqllocaldb` is missing.
+
+The API also enables **SQL transient retry** (`EnableRetryOnFailure`) for short-lived connection glitches; it does not fix permission or “database missing” errors on SQL Express without LocalDB.
+
 ---
 
 ## Docker (full stack)
 
-From the repository parent folder **`Tekstop`**, use **`docker-compose.yml`**: MySQL, phpMyAdmin, this API, and the React client behind Nginx (proxies `/api` to the API). Copy **`Tekstop/.env.example`** → **`.env`**, then:
-
-```bash
-docker compose up -d --build
-```
-
-Apply EF migrations against the exposed MySQL port (see comments at the top of `docker-compose.yml`). **`Cors:AllowedOrigins`** is configurable; the compose file sets origins for `http://localhost` and the Vite dev port by default.
+From the repository parent folder **`Tekstop`**, **`docker-compose.yml`** still provisions **MySQL** for container-based demos. The **API project itself uses SQL Server** for normal local development. If you need the API in Docker against SQL Server, adjust compose environment variables and services accordingly (see the note at the top of `docker-compose.yml`).
 
 ---
 
@@ -129,7 +137,7 @@ Configuration follows standard ASP.NET Core: `appsettings.json`, `appsettings.{E
 
 | Section / key | Purpose |
 |---------------|---------|
-| `ConnectionStrings:DefaultConnection` | MySQL connection string (shared DB for domain + Identity in typical setups) |
+| `ConnectionStrings:DefaultConnection` | SQL Server connection string (shared DB for domain + Identity in typical setups) |
 | `Cors:AllowedOrigins` | String array of allowed browser origins (credentials). If omitted, defaults include `http://localhost:5173`, `http://localhost`, and `http://127.0.0.1`. |
 | `Jwt:Secret` | HS256 signing key (≥ 32 chars) |
 | `Jwt:Issuer` | JWT issuer |

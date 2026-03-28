@@ -223,38 +223,41 @@ public class AuthController(
         // Rotation strategy:
         // - revoke the used refresh token
         // - issue a fresh JWT pair + a brand new refresh token
-        await using var tx = await authDbContext.Database.BeginTransactionAsync();
-
-        try
+        return await authDbContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
-            refreshToken.RevokedAtUtc = DateTime.UtcNow;
+            await using var tx = await authDbContext.Database.BeginTransactionAsync();
 
-            var jwt = await jwtTokenService.GenerateToken(userForRefresh);
-
-            var newRefreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
-            authDbContext.RefreshTokens.Add(new RefreshToken
+            try
             {
-                UserId = userForRefresh.Id,
-                Token = jwt.RefreshToken,
-                CreatedAtUtc = DateTime.UtcNow,
-                ExpiresAtUtc = newRefreshTokenLifetimeUtc
-            });
+                refreshToken.RevokedAtUtc = DateTime.UtcNow;
 
-            await authDbContext.SaveChangesAsync();
-            await tx.CommitAsync();
+                var jwt = await jwtTokenService.GenerateToken(userForRefresh);
 
-            return Ok(new AuthResponseDto
+                var newRefreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
+                authDbContext.RefreshTokens.Add(new RefreshToken
+                {
+                    UserId = userForRefresh.Id,
+                    Token = jwt.RefreshToken,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    ExpiresAtUtc = newRefreshTokenLifetimeUtc
+                });
+
+                await authDbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(new AuthResponseDto
+                {
+                    AccessToken = jwt.AccessToken,
+                    AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
+                    RefreshToken = jwt.RefreshToken
+                });
+            }
+            catch
             {
-                AccessToken = jwt.AccessToken,
-                AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
-                RefreshToken = jwt.RefreshToken
-            });
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
+                await tx.RollbackAsync();
+                throw;
+            }
+        });
     }
 
     private string? ResolveCurrentUserId()

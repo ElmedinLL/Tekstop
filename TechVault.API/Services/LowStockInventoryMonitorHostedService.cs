@@ -19,7 +19,7 @@ public sealed class LowStockInventoryMonitorHostedService(
     {
         if (!_settings.EnableDailyLowStockCheck)
         {
-            logger.LogInformation(
+            logger.LogDebug(
                 "Daily low-stock check is disabled ({Section}:{Property}).",
                 InventorySettings.SectionName,
                 nameof(InventorySettings.EnableDailyLowStockCheck));

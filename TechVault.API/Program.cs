@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -80,13 +82,22 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
-var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+static void ConfigureSqlServer(DbContextOptionsBuilder options, string cs)
+{
+    options.UseSqlServer(
+            cs,
+            sql =>
+            {
+                sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                sql.CommandTimeout(120);
+            })
+        .ConfigureWarnings(w =>
+            w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+}
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
+builder.Services.AddDbContext<ApplicationDbContext>(options => ConfigureSqlServer(options, connectionString));
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
+builder.Services.AddDbContext<AuthDbContext>(options => ConfigureSqlServer(options, connectionString));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("application_database")
@@ -149,7 +160,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IdentitySeeder>();
 builder.Services.AddScoped<CatalogDemoProductSeeder>();
 
-builder.Services.AddAutoMapper(typeof(ProductMappingProfile).Assembly);
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(ProductMappingProfile).Assembly));
 
 const string CorsPolicyName = "Frontend";
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
@@ -365,7 +376,48 @@ ApplicationUptime.MarkStarted();
 using (var scope = app.Services.CreateScope())
 {
     var appDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await EnsureProductImagesTable.ExecuteAsync(appDb);
+    var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+
+    try
+    {
+        await appDb.Database.MigrateAsync();
+        await authDb.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        int? sqlNumber = null;
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SqlException sx)
+            {
+                sqlNumber = sx.Number;
+                break;
+            }
+        }
+
+        switch (sqlNumber)
+        {
+            case 4060 or 18456 or 4064:
+                Log.Fatal(
+                    ex,
+                    "SQL Server rejected access to the database (error {SqlError}). See README or Scripts/SqlExpress-SetupTechVault.sql.",
+                    sqlNumber);
+                throw new InvalidOperationException(
+                    "Cannot open the TechVault database. Run Scripts/SqlExpress-SetupTechVault.sql as sysadmin, or use LocalDB (default in launchSettings).",
+                    ex);
+            case 262:
+                Log.Fatal(
+                    ex,
+                    "CREATE DATABASE denied (error {SqlError}). Your SQL login cannot create databases on this instance.",
+                    sqlNumber);
+                throw new InvalidOperationException(
+                    "CREATE DATABASE was denied. Use Server=(localdb)\\mssqllocaldb in ConnectionStrings:DefaultConnection (see launchSettings.json), " +
+                    "or ask an admin to create TechVaultDB and grant you access (Scripts/SqlExpress-SetupTechVault.sql).",
+                    ex);
+            default:
+                throw;
+        }
+    }
 
     var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
     var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
@@ -463,3 +515,5 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+public partial class Program { }

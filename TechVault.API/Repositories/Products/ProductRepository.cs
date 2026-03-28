@@ -9,8 +9,6 @@ namespace TechVault.API.Repositories.Products;
 public sealed class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
     private const int MaxSkuLength = 64;
-    /// <summary>InnoDB default minimum token length for full-text indexes; shorter terms use LIKE fallback.</summary>
-    private const int FullTextMinTokenLength = 3;
 
     public async Task<PagedResult<Product>> GetAllAsync(
         ProductListFilter? filter,
@@ -201,18 +199,22 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
 
         foreach (var pair in specFilters)
         {
-            var key = pair.Key;
+            var key = pair.Key.Trim();
             var expected = pair.Value.Trim();
-            if (string.IsNullOrEmpty(expected))
+            if (string.IsNullOrEmpty(expected) || string.IsNullOrEmpty(key))
             {
                 continue;
             }
 
-            var path = "$." + key;
+            // SpecsJson is nvarchar(max); SQL Server JSON_VALUE isn't exposed for plain strings in EF 8.
+            // Match common serialized shapes: "key":"value" and "key": "value".
+            var k = EscapeLikePattern(key);
+            var v = EscapeLikePattern(expected);
             query = query.Where(p =>
                 p.SpecsJson != null
-                && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(p.SpecsJson, new[] { path }))!.ToLower()
-                    == expected.ToLower());
+                && (
+                    EF.Functions.Like(p.SpecsJson, "%\"" + k + "\":\"" + v + "%")
+                    || EF.Functions.Like(p.SpecsJson, "%\"" + k + "\": \"" + v + "%")));
         }
 
         return query;
@@ -226,19 +228,14 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         var term = searchTerm.Trim();
-        if (term.Length < FullTextMinTokenLength)
-        {
-            return query.Where(p =>
-                EF.Functions.Like(p.Name, "%" + term + "%")
-                || (p.Description != null && EF.Functions.Like(p.Description, "%" + term + "%")));
-        }
-
+        var pattern = "%" + EscapeLikePattern(term) + "%";
         return query.Where(p =>
-            EF.Functions.IsMatch(
-                new[] { p.Name, p.Description },
-                term,
-                MySqlMatchSearchMode.NaturalLanguage));
+            EF.Functions.Like(p.Name, pattern)
+            || (p.Description != null && EF.Functions.Like(p.Description, pattern)));
     }
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>
         sort switch

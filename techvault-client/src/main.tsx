@@ -21,7 +21,12 @@ createRoot(document.getElementById('root')!).render(
         {({ reset }) => (
           <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
             <AuthProvider>
-              <BrowserRouter>
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
                 <HelmetProvider>
                   <App />
                   <AppToaster />

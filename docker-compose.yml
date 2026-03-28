@@ -1,5 +1,10 @@
 # TechVault stack: MySQL, phpMyAdmin, .NET API, React SPA (Nginx + /api proxy)
 #
+# NOTE: The API project in ./TechVault.API is configured for Microsoft SQL Server (local or hosted).
+# This compose file still provisions MySQL for historical/docker workflows. To run the API in Docker
+# against SQL Server, replace the mysql service + ConnectionStrings__DefaultConnection with a SQL Server
+# connection string (or use host networking to reach SQL Server on the host).
+#
 # Usage:
 #   1. Copy .env.example → .env and set secrets (especially MYSQL_ROOT_PASSWORD, JWT_SECRET).
 #   2. docker compose up -d --build

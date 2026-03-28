@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,7 +31,7 @@ public sealed class CatalogListCache(IMemoryCache memoryCache) : ICatalogListCac
 
     public string CreateCategoryListKey() => $"{CategoryKeyPrefix}v{Interlocked.Read(ref _listingVersion)}";
 
-    public bool TryGetProductList(string key, out PagedProductsResponse? value) =>
+    public bool TryGetProductList(string key, [NotNullWhen(true)] out PagedProductsResponse? value) =>
         memoryCache.TryGetValue(key, out value);
 
     public void SetProductList(string key, PagedProductsResponse value)
@@ -41,7 +42,7 @@ public sealed class CatalogListCache(IMemoryCache memoryCache) : ICatalogListCac
             new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ListTtl });
     }
 
-    public bool TryGetCategoryList(string key, out IReadOnlyList<CategoryListItemDto>? value) =>
+    public bool TryGetCategoryList(string key, [NotNullWhen(true)] out IReadOnlyList<CategoryListItemDto>? value) =>
         memoryCache.TryGetValue(key, out value);
 
     public void SetCategoryList(string key, IReadOnlyList<CategoryListItemDto> value)
