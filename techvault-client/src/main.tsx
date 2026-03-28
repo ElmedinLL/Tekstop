@@ -9,7 +9,7 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 import { AppToaster } from './components/AppToaster'
-import { QueryErrorFallback } from './components/QueryErrorFallback'
+import { AppErrorBoundaryFallback } from './components/AppErrorBoundaryFallback'
 import { createQueryClient } from './lib/queryClient'
 
 const queryClient = createQueryClient()
@@ -19,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <QueryErrorResetBoundary>
         {({ reset }) => (
-          <ErrorBoundary FallbackComponent={QueryErrorFallback} onReset={reset}>
+          <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
             <AuthProvider>
               <BrowserRouter>
                 <HelmetProvider>

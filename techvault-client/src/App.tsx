@@ -66,6 +66,7 @@ const OrderConfirmationPage = lazy(() =>
 )
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export default function App() {
   const location = useLocation()
@@ -158,9 +159,11 @@ export default function App() {
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
               <Route path="coupons" element={<AdminCouponsPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </main>
