@@ -11,7 +11,7 @@ import {
 import axios from 'axios'
 import { api, setupAuthInterceptors } from '../lib/api'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 const authClient = axios.create({
   baseURL: apiBaseUrl,

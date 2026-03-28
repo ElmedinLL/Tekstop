@@ -17,7 +17,11 @@ function formatMoney(n: number) {
 
 function formatExpiry(iso: string | null) {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) {
+    return '—'
+  }
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(d)
 }
 
 function formatType(t: AdminDiscountType) {

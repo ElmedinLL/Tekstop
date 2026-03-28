@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { Elements } from '@stripe/react-stripe-js'
 import { toast } from '../lib/notifications'
 import { CheckoutStripeCardForm } from '../components/CheckoutStripeCardForm'
@@ -33,6 +34,29 @@ type AddressFormValues = z.infer<typeof addressSchema>
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
+}
+
+function placeOrderErrorMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    if (err.response?.status === 401) {
+      return 'Sign in again to place your order.'
+    }
+    const data = err.response?.data
+    if (typeof data === 'string' && data.trim()) {
+      return data.trim()
+    }
+    if (data && typeof data === 'object') {
+      const msg = (data as { message?: string }).message
+      if (typeof msg === 'string' && msg.trim()) {
+        return msg.trim()
+      }
+      const title = (data as { title?: string }).title
+      if (typeof title === 'string' && title.trim()) {
+        return title.trim()
+      }
+    }
+  }
+  return 'Could not place order. Try again.'
 }
 
 export function CheckoutPage() {
@@ -101,7 +125,9 @@ export function CheckoutPage() {
 
   const handleAddressNext = async () => {
     let addressId = selectedAddressId
-    if (useNewAddress) {
+    /** No saved addresses: the form is shown but `useNewAddress` stays false — still create from the form. */
+    const createFromForm = useNewAddress || addresses.length === 0
+    if (createFromForm) {
       const ok = await form.trigger()
       if (!ok) {
         toast.error('Fix the address form.')
@@ -526,8 +552,8 @@ export function CheckoutPage() {
                     })
                     await refetchCart()
                     navigate(`/orders/confirmation/${order.id}`)
-                  } catch {
-                    toast.error('Could not place order. Try again.')
+                  } catch (e) {
+                    toast.error(placeOrderErrorMessage(e))
                   } finally {
                     setIsSubmitting(false)
                   }

@@ -40,41 +40,32 @@ public sealed class OrderService(
             throw new InvalidOperationException("Shipping address was not found.");
         }
 
-        var cartItems = await db.CartItems
+        var allCartItems = await db.CartItems
             .Include(c => c.Product)
             .Where(c => c.IdentityUserId == identityUserId)
             .ToListAsync(cancellationToken);
 
-        if (cartItems.Count == 0)
+        if (allCartItems.Count == 0)
         {
             throw new InvalidOperationException("Your cart is empty.");
         }
 
-        if (!CartMatchesSnapshot(cartItems, dto.CartItems))
+        // Must match CartService.GetDbCartAsync: same effective lines/quantities the client sends in CartItems.
+        var orderableLines = GetOrderableCartLines(allCartItems);
+        if (orderableLines.Count == 0)
+        {
+            throw new InvalidOperationException("Your cart is empty.");
+        }
+
+        if (!CartMatchesSnapshot(orderableLines, dto.CartItems))
         {
             throw new InvalidOperationException("Cart does not match the server. Refresh and try again.");
         }
 
-        foreach (var line in cartItems)
-        {
-            if (line.Product is null || !line.Product.IsPublished || line.Product.IsDeleted)
-            {
-                throw new InvalidOperationException($"Product {line.ProductId} is not available.");
-            }
-
-            var qty = Math.Min(line.Quantity, line.Product.StockQuantity);
-            if (qty < 1 || line.Quantity > line.Product.StockQuantity)
-            {
-                throw new InvalidOperationException(
-                    $"Insufficient stock for {line.Product.Name}.");
-            }
-        }
-
         decimal subTotal = 0;
-        foreach (var line in cartItems)
+        foreach (var (line, qty) in orderableLines)
         {
             var p = line.Product!;
-            var qty = Math.Min(line.Quantity, p.StockQuantity);
             subTotal += p.Price * qty;
         }
 
@@ -152,10 +143,9 @@ public sealed class OrderService(
             db.Orders.Add(order);
             await db.SaveChangesAsync(cancellationToken);
 
-            foreach (var line in cartItems)
+            foreach (var (line, qty) in orderableLines)
             {
                 var p = line.Product!;
-                var qty = Math.Min(line.Quantity, p.StockQuantity);
                 var unitPrice = p.Price;
                 var lineTotal = unitPrice * qty;
 
@@ -175,7 +165,7 @@ public sealed class OrderService(
                 tracked.StockQuantity -= qty;
             }
 
-            db.CartItems.RemoveRange(cartItems);
+            db.CartItems.RemoveRange(allCartItems);
 
             if (couponCode is not null)
             {
@@ -196,7 +186,7 @@ public sealed class OrderService(
                 order.Total,
                 order.Currency,
                 order.Status,
-                cartItems.Count,
+                orderableLines.Count,
                 order.PaymentMethod,
                 couponCode is not null);
 
@@ -387,8 +377,32 @@ public sealed class OrderService(
         };
     }
 
+    /// <summary>Published products only, quantity clamped to stock (same rules as the cart API response).</summary>
+    private static List<(CartItem Line, int Qty)> GetOrderableCartLines(IReadOnlyList<CartItem> items)
+    {
+        var result = new List<(CartItem Line, int Qty)>();
+        foreach (var line in items)
+        {
+            var p = line.Product;
+            if (p is null || !p.IsPublished || p.IsDeleted)
+            {
+                continue;
+            }
+
+            var qty = Math.Min(line.Quantity, p.StockQuantity);
+            if (qty < 1)
+            {
+                continue;
+            }
+
+            result.Add((line, qty));
+        }
+
+        return result;
+    }
+
     private static bool CartMatchesSnapshot(
-        IReadOnlyList<CartItem> dbItems,
+        IReadOnlyList<(CartItem Line, int Qty)> orderable,
         IReadOnlyList<CreateOrderCartItemDto>? snapshot)
     {
         if (snapshot is null || snapshot.Count == 0)
@@ -396,14 +410,9 @@ public sealed class OrderService(
             return true;
         }
 
-        if (dbItems.Count != snapshot.Count)
-        {
-            return false;
-        }
-
-        var a = dbItems
-            .OrderBy(x => x.ProductId)
-            .Select(x => (x.ProductId, x.Quantity))
+        var a = orderable
+            .OrderBy(x => x.Line.ProductId)
+            .Select(x => (x.Line.ProductId, x.Qty))
             .ToList();
 
         var b = snapshot
@@ -411,7 +420,7 @@ public sealed class OrderService(
             .Select(x => (x.ProductId, x.Quantity))
             .ToList();
 
-        return a.SequenceEqual(b);
+        return a.Count == b.Count && a.SequenceEqual(b);
     }
 
     private static decimal ResolveShippingAmount(string shippingMethod)

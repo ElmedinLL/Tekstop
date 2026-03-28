@@ -7,7 +7,7 @@ RUN npm ci
 
 COPY . .
 # Same-origin /api via Nginx proxy (see nginx.conf)
-ENV VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=/api/v1
 RUN npm run build
 
 FROM nginx:1.27-alpine
