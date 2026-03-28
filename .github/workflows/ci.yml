@@ -1,0 +1,59 @@
+# CI: .NET build + test, frontend production build.
+# Runs on pushes to main and on pull requests targeting main — failing steps fail the check and block merges if branch protection requires this workflow.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: dotnet restore
+        run: dotnet restore Tekstop-1.sln
+
+      - name: dotnet build
+        run: dotnet build Tekstop-1.sln --configuration Release --no-restore
+
+      - name: dotnet test
+        run: dotnet test Tekstop-1.sln --configuration Release --no-build --verbosity normal
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: techvault-client/package-lock.json
+
+      - name: npm ci
+        working-directory: techvault-client
+        run: npm ci
+
+      - name: npm run build
+        working-directory: techvault-client
+        run: npm run build
