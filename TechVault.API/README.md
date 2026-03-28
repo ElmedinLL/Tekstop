@@ -111,6 +111,18 @@ TechVault.API/
 
 ---
 
+## Docker (full stack)
+
+From the repository parent folder **`Tekstop`**, use **`docker-compose.yml`**: MySQL, phpMyAdmin, this API, and the React client behind Nginx (proxies `/api` to the API). Copy **`Tekstop/.env.example`** → **`.env`**, then:
+
+```bash
+docker compose up -d --build
+```
+
+Apply EF migrations against the exposed MySQL port (see comments at the top of `docker-compose.yml`). **`Cors:AllowedOrigins`** is configurable; the compose file sets origins for `http://localhost` and the Vite dev port by default.
+
+---
+
 ## Environment variables & configuration
 
 Configuration follows standard ASP.NET Core: `appsettings.json`, `appsettings.{Environment}.json`, environment variables, and user secrets. Environment variables use `__` (double underscore) for nested keys, e.g. `ConnectionStrings__DefaultConnection`.
@@ -118,6 +130,7 @@ Configuration follows standard ASP.NET Core: `appsettings.json`, `appsettings.{E
 | Section / key | Purpose |
 |---------------|---------|
 | `ConnectionStrings:DefaultConnection` | MySQL connection string (shared DB for domain + Identity in typical setups) |
+| `Cors:AllowedOrigins` | String array of allowed browser origins (credentials). If omitted, defaults include `http://localhost:5173`, `http://localhost`, and `http://127.0.0.1`. |
 | `Jwt:Secret` | HS256 signing key (≥ 32 chars) |
 | `Jwt:Issuer` | JWT issuer |
 | `Jwt:Audience` | JWT audience |

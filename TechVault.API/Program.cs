@@ -150,11 +150,23 @@ builder.Services.AddScoped<IdentitySeeder>();
 builder.Services.AddAutoMapper(typeof(ProductMappingProfile).Assembly);
 
 const string CorsPolicyName = "Frontend";
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (corsOrigins is not { Length: > 0 })
+{
+    corsOrigins =
+    [
+        "http://localhost:5173",
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://127.0.0.1:5173"
+    ];
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyName, policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(corsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
