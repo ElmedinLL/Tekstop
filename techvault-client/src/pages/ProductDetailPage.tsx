@@ -11,6 +11,7 @@ import { ReviewForm } from '../components/ReviewForm'
 import { ReviewList } from '../components/ReviewList'
 import { flyToCart } from '../lib/flyToCart'
 import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
+import { useAddCartItemMutation } from '../hooks/useCart'
 import { useCartStore } from '../store/useCartStore'
 
 async function fetchProductById(id: number): Promise<ProductDetail> {
@@ -57,7 +58,7 @@ export function ProductDetailPage() {
 
   const [quantity, setQuantity] = useState(1)
   const addToCartBtnRef = useRef<HTMLButtonElement>(null)
-  const addItem = useCartStore((s) => s.addItem)
+  const addCartMu = useAddCartItemMutation()
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   useEffect(() => {
@@ -131,7 +132,7 @@ export function ProductDetailPage() {
       return
     }
     try {
-      await addItem(product.id, quantity)
+      await addCartMu.mutateAsync({ productId: product.id, quantity })
       flyToCart(addToCartBtnRef.current)
       setCartDrawerOpen(true)
       notifyCartAdded(product.name)

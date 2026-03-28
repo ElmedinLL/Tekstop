@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useCartQuery } from '../hooks/useCart'
 import { useCartStore } from '../store/useCartStore'
 
 type NavbarProps = {
@@ -8,7 +9,8 @@ type NavbarProps = {
 
 export function Navbar({ onOpenCart }: NavbarProps) {
   const { isAuthenticated, user, logout } = useAuth()
-  const count = useCartStore((s) => s.itemCount())
+  const { data: cart } = useCartQuery()
+  const count = cart?.totalItemCount ?? 0
   const badgeBump = useCartStore((s) => s.badgeBump)
 
   return (

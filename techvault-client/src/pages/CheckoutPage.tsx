@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Elements } from '@stripe/react-stripe-js'
 import { toast } from '../lib/notifications'
 import { CheckoutStripeCardForm } from '../components/CheckoutStripeCardForm'
@@ -11,7 +11,7 @@ import { validateCoupon } from '../lib/coupon'
 import { createOrder } from '../lib/orders'
 import { fetchAddresses, createAddress } from '../lib/addresses'
 import { stripePromise } from '../lib/stripeClient'
-import { useCartStore } from '../store/useCartStore'
+import { useCartQuery } from '../hooks/useCart'
 import type { AddressDto } from '../types/address'
 
 const addressSchema = z.object({
@@ -45,8 +45,11 @@ export function CheckoutPage() {
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const [appliedCode, setAppliedCode] = useState<string | null>(null)
 
-  const serverCart = useCartStore((s) => s.serverCart)
-  const fetchCart = useCartStore((s) => s.fetchCart)
+  const { data: serverCart, refetch: refetchCart } = useCartQuery()
+
+  const checkoutCouponMu = useMutation({
+    mutationFn: ({ code, subTotal }: { code: string; subTotal: number }) => validateCoupon(code, subTotal),
+  })
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod'>('cod')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -91,9 +94,9 @@ export function CheckoutPage() {
 
   useEffect(() => {
     if (step === 2) {
-      void fetchCart()
+      void refetchCart()
     }
-  }, [step, fetchCart])
+  }, [step, refetchCart])
 
   const handleAddressNext = async () => {
     let addressId = selectedAddressId
@@ -376,25 +379,30 @@ export function CheckoutPage() {
               <button
                 type="button"
                 className="rounded bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900"
-                onClick={async () => {
+                onClick={() => {
                   if (!couponInput.trim()) {
                     toast.error('Enter a coupon code.')
                     return
                   }
-                  try {
-                    const res = await validateCoupon(couponInput.trim(), serverCart?.subTotal ?? 0)
-                    if (!res.isValid) {
-                      toast.error(res.message)
-                      setAppliedDiscount(0)
-                      setAppliedCode(null)
-                      return
-                    }
-                    setAppliedDiscount(res.discountAmount)
-                    setAppliedCode(res.code ?? couponInput.trim())
-                    toast.success(res.message)
-                  } catch {
-                    toast.error('Could not validate coupon.')
-                  }
+                  checkoutCouponMu.mutate(
+                    { code: couponInput.trim(), subTotal: serverCart?.subTotal ?? 0 },
+                    {
+                      onSuccess: (res) => {
+                        if (!res.isValid) {
+                          toast.error(res.message)
+                          setAppliedDiscount(0)
+                          setAppliedCode(null)
+                          return
+                        }
+                        setAppliedDiscount(res.discountAmount)
+                        setAppliedCode(res.code ?? couponInput.trim())
+                        toast.success(res.message)
+                      },
+                      onError: () => {
+                        toast.error('Could not validate coupon.')
+                      },
+                    },
+                  )
                 }}
               >
                 Apply
@@ -471,8 +479,8 @@ export function CheckoutPage() {
                 selectedAddressId={selectedAddressId}
                 shippingMethod={shippingMethod}
                 appliedCode={appliedCode}
-                serverCart={serverCart}
-                fetchCart={fetchCart}
+                serverCart={serverCart ?? null}
+                refetchCart={() => refetchCart().then(() => undefined)}
                 onBack={() => setStep(2)}
                 onSuccess={(orderId) => navigate(`/orders/confirmation/${orderId}`)}
               />
@@ -509,7 +517,7 @@ export function CheckoutPage() {
                         quantity: l.quantity,
                       })),
                     })
-                    await fetchCart()
+                    await refetchCart()
                     navigate(`/orders/confirmation/${order.id}`)
                   } catch {
                     toast.error('Could not place order. Try again.')

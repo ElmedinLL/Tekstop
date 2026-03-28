@@ -8,6 +8,7 @@ import {
 import { ProductGrid } from '../components/ProductGrid'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { fetchWishlist, removeFromWishlist } from '../lib/wishlist'
+import { useAddCartItemMutation } from '../hooks/useCart'
 import { useCartStore } from '../store/useCartStore'
 
 function formatMoney(n: number) {
@@ -16,7 +17,7 @@ function formatMoney(n: number) {
 
 export function WishlistPage() {
   const queryClient = useQueryClient()
-  const addItem = useCartStore((s) => s.addItem)
+  const addCartMu = useAddCartItemMutation()
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   const { data, isPending, isError } = useQuery({
@@ -35,7 +36,7 @@ export function WishlistPage() {
 
   const moveMu = useMutation({
     mutationFn: async (productId: number) => {
-      await addItem(productId, 1)
+      await addCartMu.mutateAsync({ productId, quantity: 1 })
       await removeFromWishlist(productId)
     },
     onSuccess: () => {
