@@ -1,5 +1,4 @@
-using Asp.Versioning.Http;
-using Asp.Versioning.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

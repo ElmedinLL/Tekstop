@@ -1,4 +1,4 @@
-using Asp.Versioning.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
 namespace TechVault.API.Controllers;

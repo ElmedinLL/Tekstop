@@ -2,7 +2,6 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
-using Asp.Versioning.Http;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using Serilog;
 using Serilog.AspNetCore;
 using Serilog.Events;
@@ -294,8 +294,8 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddFluentValidationAutoValidation(options => options.DisableDataAnnotations = true);
-builder.Services.AddValidatorsFromAssemblyContaining<FluentValidationMarker>();
+builder.Services.AddFluentValidationAutoValidation(options => options.DisableDataAnnotationsValidation = true);
+builder.Services.AddValidatorsFromAssembly(typeof(FluentValidationMarker).Assembly);
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

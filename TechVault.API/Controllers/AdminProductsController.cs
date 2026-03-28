@@ -1,5 +1,5 @@
 using AutoMapper;
-using Asp.Versioning.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TechVault.API.Products;
