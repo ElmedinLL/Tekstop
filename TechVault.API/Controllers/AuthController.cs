@@ -84,56 +84,72 @@ public class AuthController(
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto dto)
     {
-        var user = new ApplicationUser
+        ApplicationUser? user = null;
+        try
         {
-            Email = dto.Email,
-            UserName = dto.Email,
-            FirstName = dto.FirstName,
-            LastName = dto.LastName
-        };
-
-        var createResult = await userManager.CreateAsync(user, dto.Password);
-        if (!createResult.Succeeded)
-        {
-            foreach (var error in createResult.Errors)
+            user = new ApplicationUser
             {
-                ModelState.AddModelError(error.Code, error.Description);
+                Email = dto.Email,
+                UserName = dto.Email,
+                FirstName = dto.FirstName,
+                LastName = dto.LastName
+            };
+
+            var createResult = await userManager.CreateAsync(user, dto.Password);
+            if (!createResult.Succeeded)
+            {
+                foreach (var error in createResult.Errors)
+                {
+                    ModelState.AddModelError(error.Code, error.Description);
+                }
+
+                return ValidationProblem(ModelState);
             }
 
-            return ValidationProblem(ModelState);
-        }
-
-        var customerRoleName = nameof(UserRole.Customer);
-        if (!await roleManager.RoleExistsAsync(customerRoleName))
-        {
-            var roleCreateResult = await roleManager.CreateAsync(new IdentityRole(customerRoleName));
-            if (!roleCreateResult.Succeeded)
+            var customerRoleName = nameof(UserRole.Customer);
+            if (!await roleManager.RoleExistsAsync(customerRoleName))
             {
-                return Problem(
-                    statusCode: StatusCodes.Status500InternalServerError,
-                    title: "Role creation failed",
-                    detail: string.Join("; ", roleCreateResult.Errors.Select(e => e.Description)));
-            }
-        }
-
-        var addRoleResult = await userManager.AddToRoleAsync(user, customerRoleName);
-        if (!addRoleResult.Succeeded)
-        {
-            foreach (var error in addRoleResult.Errors)
-            {
-                ModelState.AddModelError(error.Code, error.Description);
+                var roleCreateResult = await roleManager.CreateAsync(new IdentityRole(customerRoleName));
+                if (!roleCreateResult.Succeeded)
+                {
+                    await RollbackFailedRegistrationAsync(user);
+                    return Problem(
+                        statusCode: StatusCodes.Status500InternalServerError,
+                        title: "Role creation failed",
+                        detail: string.Join("; ", roleCreateResult.Errors.Select(e => e.Description)));
+                }
             }
 
-            return ValidationProblem(ModelState);
-        }
+            var addRoleResult = await userManager.AddToRoleAsync(user, customerRoleName);
+            if (!addRoleResult.Succeeded)
+            {
+                foreach (var error in addRoleResult.Errors)
+                {
+                    ModelState.AddModelError(error.Code, error.Description);
+                }
 
-        return Ok(await IssueTokensAndPersistRefreshAsync(user));
+                await RollbackFailedRegistrationAsync(user);
+                return ValidationProblem(ModelState);
+            }
+
+            return Ok(await IssueTokensAndPersistRefreshAsync(user));
+        }
+        catch
+        {
+            if (user is not null)
+            {
+                await RollbackFailedRegistrationAsync(user);
+            }
+
+            throw;
+        }
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto dto)
     {
-        var user = await userManager.FindByEmailAsync(dto.Email);
+        var email = dto.Email.Trim();
+        var user = await userManager.FindByEmailAsync(email);
         if (user == null)
         {
             return Unauthorized();
@@ -188,6 +204,14 @@ public class AuthController(
             return Unauthorized();
         }
 
+        var userForRefresh = await userManager.FindByIdAsync(refreshToken.UserId);
+        if (userForRefresh == null)
+        {
+            return Unauthorized();
+        }
+
+        await domainUserService.GetOrCreateDomainUserIdAsync(userForRefresh.Id);
+
         // Rotation strategy:
         // - revoke the used refresh token
         // - issue a fresh JWT pair + a brand new refresh token
@@ -197,20 +221,12 @@ public class AuthController(
         {
             refreshToken.RevokedAtUtc = DateTime.UtcNow;
 
-            var user = await userManager.FindByIdAsync(refreshToken.UserId);
-            if (user == null)
-            {
-                await authDbContext.SaveChangesAsync();
-                await tx.CommitAsync();
-                return Unauthorized();
-            }
-
-            var jwt = await jwtTokenService.GenerateToken(user);
+            var jwt = await jwtTokenService.GenerateToken(userForRefresh);
 
             var newRefreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
             authDbContext.RefreshTokens.Add(new RefreshToken
             {
-                UserId = user.Id,
+                UserId = userForRefresh.Id,
                 Token = jwt.RefreshToken,
                 CreatedAtUtc = DateTime.UtcNow,
                 ExpiresAtUtc = newRefreshTokenLifetimeUtc
@@ -218,8 +234,6 @@ public class AuthController(
 
             await authDbContext.SaveChangesAsync();
             await tx.CommitAsync();
-
-            await domainUserService.GetOrCreateDomainUserIdAsync(user.Id);
 
             return Ok(new AuthResponseDto
             {
@@ -242,6 +256,10 @@ public class AuthController(
 
     private async Task<AuthResponseDto> IssueTokensAndPersistRefreshAsync(ApplicationUser user)
     {
+        // Ensure catalog user exists before persisting refresh tokens so a failure does not leave
+        // a half-registered Identity account (email taken) with no successful response.
+        await domainUserService.GetOrCreateDomainUserIdAsync(user.Id);
+
         var jwt = await jwtTokenService.GenerateToken(user);
         var refreshTokenLifetimeUtc = DateTime.UtcNow.AddDays(30);
 
@@ -255,14 +273,25 @@ public class AuthController(
 
         await authDbContext.SaveChangesAsync();
 
-        await domainUserService.GetOrCreateDomainUserIdAsync(user.Id);
-
         return new AuthResponseDto
         {
             AccessToken = jwt.AccessToken,
             AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
             RefreshToken = jwt.RefreshToken
         };
+    }
+
+    private async Task RollbackFailedRegistrationAsync(ApplicationUser user)
+    {
+        await domainUserService.DeleteByIdentityUserIdIfExistsAsync(user.Id);
+        try
+        {
+            await userManager.DeleteAsync(user);
+        }
+        catch
+        {
+            // Best-effort cleanup; rethrow from caller if needed.
+        }
     }
 }
 

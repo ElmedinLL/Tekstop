@@ -74,6 +74,18 @@ export function LoginPage() {
           setFormError('Invalid email or password.')
         } else if (status === 423) {
           setFormError('This account is temporarily locked. Try again later.')
+        } else if (status === 400) {
+          const data = err.response?.data as { title?: string; detail?: string; errors?: Record<string, string[]> }
+          const messages = data?.errors
+            ? Object.values(data.errors)
+                .flat()
+                .filter((m): m is string => typeof m === 'string' && m.length > 0)
+            : []
+          setFormError(
+            messages.length > 0
+              ? messages.join(' ')
+              : 'Use a full email address (include @ and the domain, e.g. name@gmail.com).',
+          )
         } else {
           const data = err.response?.data as { title?: string; detail?: string; errors?: Record<string, string[]> }
           if (data?.errors) {

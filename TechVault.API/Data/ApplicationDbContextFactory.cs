@@ -12,9 +12,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
     {
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-        optionsBuilder.UseMySql(
-            "Server=localhost;Port=3306;Database=TechVaultDB;User Id=root;Password=;",
-            serverVersion);
+        optionsBuilder.UseMySql(DesignTimeConnectionString.GetDefaultConnection(), serverVersion);
 
         return new ApplicationDbContext(optionsBuilder.Options);
     }

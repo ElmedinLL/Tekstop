@@ -76,9 +76,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitializing, setIsInitializing] = useState(true)
   const refreshPromiseRef = useRef<Promise<string | null> | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
+  /** Mirrors access token state but updates synchronously so /auth/me works immediately after login/register. */
+  const accessTokenRef = useRef<string | null>(null)
 
   const clearSession = useCallback(() => {
     setAccessToken(null)
+    accessTokenRef.current = null
     setUser(null)
     refreshTokenRef.current = null
   }, [])
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           refreshToken: rt,
         })
         refreshTokenRef.current = response.data.refreshToken
+        accessTokenRef.current = response.data.accessToken
         setAccessToken(response.data.accessToken)
         return response.data.accessToken
       } catch {
@@ -120,6 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const establishSession = useCallback(
     async (tokens: { accessToken: string; refreshToken: string }) => {
       refreshTokenRef.current = tokens.refreshToken
+      accessTokenRef.current = tokens.accessToken
       setAccessToken(tokens.accessToken)
       await fetchMe()
     },
@@ -169,11 +174,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     setupAuthInterceptors({
-      getAccessToken: () => accessToken,
+      getAccessToken: () => accessTokenRef.current,
       refreshAccessToken: refresh,
       onAuthFailure: clearSession,
     })
-  }, [accessToken, refresh, clearSession])
+  }, [refresh, clearSession])
 
   useEffect(() => {
     let isMounted = true

@@ -16,4 +16,10 @@ public sealed class IdentitySeedOptions
 
     public string AdminFirstName { get; set; } = "System";
     public string AdminLastName { get; set; } = "Admin";
+
+    /// <summary>
+    /// When true, an existing <see cref="AdminEmail"/> account gets its password replaced with
+    /// <see cref="AdminPassword"/> on startup (and lockout is cleared). Use in local/dev config only.
+    /// </summary>
+    public bool SyncAdminPassword { get; set; }
 }

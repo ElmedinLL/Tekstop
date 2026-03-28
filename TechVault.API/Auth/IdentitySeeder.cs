@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace TechVault.API.Auth;
 
 public sealed class IdentitySeeder(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole> roleManager)
+    RoleManager<IdentityRole> roleManager,
+    IHostEnvironment hostEnvironment,
+    ILogger<IdentitySeeder> logger)
 {
     public async Task SeedAsync(IdentitySeedOptions options)
     {
@@ -16,13 +20,14 @@ public sealed class IdentitySeeder(
             return;
         }
 
-        var adminUser = await userManager.FindByEmailAsync(options.AdminEmail);
+        var adminEmail = options.AdminEmail.Trim();
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
         if (adminUser == null)
         {
             adminUser = new ApplicationUser
             {
-                UserName = options.AdminEmail,
-                Email = options.AdminEmail,
+                UserName = adminEmail,
+                Email = adminEmail,
                 FirstName = options.AdminFirstName,
                 LastName = options.AdminLastName,
                 EmailConfirmed = true
@@ -35,6 +40,36 @@ public sealed class IdentitySeeder(
                 throw new InvalidOperationException($"Failed to create default admin user: {errors}");
             }
         }
+        else if (ShouldSyncAdminPassword(options))
+        {
+            var hasPassword = await userManager.HasPasswordAsync(adminUser);
+            if (hasPassword)
+            {
+                var removeResult = await userManager.RemovePasswordAsync(adminUser);
+                if (!removeResult.Succeeded)
+                {
+                    var errors = string.Join("; ", removeResult.Errors.Select(e => e.Description));
+                    throw new InvalidOperationException($"Failed to clear password for admin sync: {errors}");
+                }
+            }
+
+            var addResult = await userManager.AddPasswordAsync(adminUser, options.AdminPassword);
+            if (!addResult.Succeeded)
+            {
+                var errors = string.Join("; ", addResult.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Failed to set admin password from IdentitySeed: {errors}");
+            }
+
+            if (userManager.SupportsUserLockout)
+            {
+                await userManager.SetLockoutEndDateAsync(adminUser, null);
+                await userManager.ResetAccessFailedCountAsync(adminUser);
+            }
+
+            logger.LogInformation(
+                "Identity seed: password and lockout synced for admin {Email} (Development or SyncAdminPassword).",
+                adminEmail);
+        }
 
         if (!await userManager.IsInRoleAsync(adminUser, "Admin"))
         {
@@ -45,7 +80,12 @@ public sealed class IdentitySeeder(
                 throw new InvalidOperationException($"Failed to assign Admin role to default admin user: {errors}");
             }
         }
+
+        logger.LogInformation("Identity seed: admin user {Email} has Admin role.", adminUser.Email);
     }
+
+    private bool ShouldSyncAdminPassword(IdentitySeedOptions options) =>
+        options.SyncAdminPassword || hostEnvironment.IsDevelopment();
 
     private async Task EnsureRoleExistsAsync(string roleName)
     {

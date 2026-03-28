@@ -13,6 +13,7 @@ using TechVault.API.Notifications;
 using TechVault.API.Payments;
 using TechVault.API.Repositories;
 using TechVault.API.Repositories.Products;
+using TechVault.API.Seed;
 using TechVault.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,6 +84,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IdentitySeeder>();
+builder.Services.AddScoped<CatalogDemoProductSeeder>();
 
 builder.Services.AddAutoMapper(typeof(ProductMappingProfile).Assembly);
 
@@ -100,6 +102,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.Configure<IdentitySeedOptions>(builder.Configuration.GetSection(IdentitySeedOptions.SectionName));
+builder.Services.Configure<CatalogDemoSeedOptions>(builder.Configuration.GetSection(CatalogDemoSeedOptions.SectionName));
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt settings are not configured. Copy appsettings.example.json to appsettings.json and set Jwt:Secret/Issuer/Audience/ExpiryInDays.");
@@ -180,11 +183,19 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var appDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await EnsureProductImagesTable.ExecuteAsync(appDb);
+
     var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
     var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
         ?? new IdentitySeedOptions();
 
     await seeder.SeedAsync(seedOptions);
+
+    var catalogSeeder = scope.ServiceProvider.GetRequiredService<CatalogDemoProductSeeder>();
+    var catalogOptions = app.Configuration.GetSection(CatalogDemoSeedOptions.SectionName).Get<CatalogDemoSeedOptions>()
+        ?? new CatalogDemoSeedOptions();
+    await catalogSeeder.SeedAsync(catalogOptions);
 }
 
 if (app.Environment.IsDevelopment())

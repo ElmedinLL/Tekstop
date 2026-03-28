@@ -72,4 +72,23 @@ public sealed class DomainUserService(
 
         return domainUser.Id;
     }
+
+    public async Task DeleteByIdentityUserIdIfExistsAsync(string identityUserId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(identityUserId))
+        {
+            return;
+        }
+
+        var domainUser = await db.Users
+            .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId, cancellationToken);
+
+        if (domainUser is null)
+        {
+            return;
+        }
+
+        db.Users.Remove(domainUser);
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }
