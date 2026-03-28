@@ -16,6 +16,7 @@ import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { fetchProductDetail } from '../hooks/useProduct'
 import { toast } from '../lib/notifications'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
+import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
 import { useCartStore } from '../store/useCartStore'
 
 function formatMoney(n: number) {
@@ -61,10 +62,17 @@ export function ProductDetailPage() {
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
   const compareToggle = useCompareStore((s) => s.toggle)
   const inCompare = useCompareStore((s) => s.has(id))
+  const recordProductView = useRecentlyViewedStore((s) => s.recordView)
 
   useEffect(() => {
     setQuantity(1)
   }, [id])
+
+  useEffect(() => {
+    if (product?.id) {
+      recordProductView(product.id)
+    }
+  }, [product?.id, recordProductView])
 
   const maxQty = product?.stock ?? 0
   const inStock = maxQty > 0
