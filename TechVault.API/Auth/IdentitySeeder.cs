@@ -17,6 +17,8 @@ public sealed class IdentitySeeder(
 
         if (string.IsNullOrWhiteSpace(options.AdminEmail) || string.IsNullOrWhiteSpace(options.AdminPassword))
         {
+            logger.LogWarning(
+                "IdentitySeed: AdminEmail or AdminPassword is empty; skipping admin user. Set IdentitySeed in appsettings (see appsettings.example.json).");
             return;
         }
 
@@ -79,6 +81,13 @@ public sealed class IdentitySeeder(
                 var errors = string.Join("; ", addRoleResult.Errors.Select(e => e.Description));
                 throw new InvalidOperationException($"Failed to assign Admin role to default admin user: {errors}");
             }
+        }
+
+        // Clear lockout so failed login attempts cannot block the seeded admin after restart.
+        if (userManager.SupportsUserLockout)
+        {
+            await userManager.SetLockoutEndDateAsync(adminUser, null);
+            await userManager.ResetAccessFailedCountAsync(adminUser);
         }
 
         logger.LogInformation("Identity seed: admin user {Email} has Admin role.", adminUser.Email);

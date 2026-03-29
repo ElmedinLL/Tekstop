@@ -1,14 +1,19 @@
-import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
+import { useAddCartItemMutation } from '../hooks/useCart'
+import { flyToCart } from '../lib/flyToCart'
 import {
+  notifyCartAdded,
+  notifyCartError,
   notifyWishlistAuthRequired,
   notifyWishlistError,
   notifyWishlistToggled,
   toast,
 } from '../lib/notifications'
 import { addToWishlist, fetchWishlist, removeFromWishlist } from '../lib/wishlist'
+import { useCartStore } from '../store/useCartStore'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 
 export type ProductCardProps = {
@@ -191,9 +196,12 @@ export function ProductCard({
 }: ProductCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const [heartPop, setHeartPop] = useState(false)
+  const addToCartBtnRef = useRef<HTMLButtonElement>(null)
   const { isAuthenticated, isInitializing } = useAuth()
   const compareToggle = useCompareStore((s) => s.toggle)
   const queryClient = useQueryClient()
+  const addCartMu = useAddCartItemMutation()
+  const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   const productIdNum = useMemo(() => {
     const n = typeof id === 'number' ? id : Number.parseInt(String(id), 10)
@@ -254,6 +262,28 @@ export function ProductCard({
       return
     }
     wishlistToggleMu.mutate()
+  }
+
+  const handleAddToCartClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!inStock || productIdNum == null) {
+      return
+    }
+    if (onAddToCart) {
+      onAddToCart(id)
+      return
+    }
+    void (async () => {
+      try {
+        await addCartMu.mutateAsync({ productId: productIdNum, quantity: 1 })
+        flyToCart(addToCartBtnRef.current)
+        setCartDrawerOpen(true)
+        notifyCartAdded(name)
+      } catch {
+        notifyCartError()
+      }
+    })()
   }
 
   const handleCompareClick = (e: MouseEvent<HTMLButtonElement>) => {
@@ -368,18 +398,17 @@ export function ProductCard({
         </div>
 
         <button
+          ref={addToCartBtnRef}
           type="button"
-          disabled={!inStock}
-          onClick={() => {
-            if (inStock) onAddToCart?.(id)
-          }}
+          disabled={!inStock || (!onAddToCart && addCartMu.isPending)}
+          onClick={handleAddToCartClick}
           className={`mt-1 w-full rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
             inStock
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'cursor-not-allowed bg-slate-200 text-slate-500'
           }`}
         >
-          {inStock ? 'Add to cart' : 'Unavailable'}
+          {inStock ? (addCartMu.isPending && !onAddToCart ? 'Adding…' : 'Add to cart') : 'Unavailable'}
         </button>
       </div>
     </article>

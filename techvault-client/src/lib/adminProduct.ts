@@ -27,3 +27,8 @@ export async function uploadProductImage(productId: number, file: File) {
   const { data } = await api.post<ProductImageUploadResponse>(`/products/${productId}/images`, formData)
   return data
 }
+
+/** Soft-deletes a product (admin); removes it from the storefront. */
+export async function deleteProduct(id: number): Promise<void> {
+  await api.delete(`/products/${id}`)
+}

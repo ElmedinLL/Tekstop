@@ -97,6 +97,7 @@ export function RegisterPage() {
       await register({
         email: email.trim(),
         password,
+        confirmPassword,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       })

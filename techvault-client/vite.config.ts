@@ -9,6 +9,11 @@ export default defineConfig({
         target: 'http://localhost:5092',
         changeOrigin: true,
       },
+      // Product/category images are served from API wwwroot (e.g. /images/products/...)
+      '/images': {
+        target: 'http://localhost:5092',
+        changeOrigin: true,
+      },
     },
   },
 })

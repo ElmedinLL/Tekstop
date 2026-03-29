@@ -24,15 +24,20 @@ public sealed class CatalogDemoProductSeeder(
         "TechVault", "NovaGraph", "CorePeak", "FlashForge", "PixelPro", "LinkHub", "KeyForge", "SoundArc"
     ];
 
-    private static readonly string[] PlaceholderImageUrls =
-    [
-        "/images/products/probook-14.jpg",
-        "/images/products/blade-16.jpg",
-        "/images/products/gpu-780.jpg",
-        "/images/products/mon-27.jpg",
-        "/images/products/kb-rgb.jpg",
-        "/images/products/router.jpg"
-    ];
+    /// <summary>Primary product image per category slug — matches real catalog filenames under wwwroot/images/products.</summary>
+    private static string ImageUrlForCategorySlug(string categorySlug)
+    {
+        var s = categorySlug.Trim().ToLowerInvariant();
+        return s switch
+        {
+            "laptops" => "/images/products/probook-14.jpg",
+            "pc-components" => "/images/products/gpu-780.jpg",
+            "peripherals" => "/images/products/headset.jpg",
+            "monitors" => "/images/products/mon-27.jpg",
+            "networking" => "/images/products/router.jpg",
+            _ => "/images/products/probook-14.jpg",
+        };
+    }
 
     public async Task SeedAsync(CatalogDemoSeedOptions options, CancellationToken cancellationToken = default)
     {
@@ -107,7 +112,7 @@ public sealed class CatalogDemoProductSeeder(
                     IsDeleted = false,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now,
-                    ImageUrl = PlaceholderImageUrls[rnd.Next(PlaceholderImageUrls.Length)],
+                    ImageUrl = ImageUrlForCategorySlug(category.Slug),
                     ReviewCount = 0,
                     AverageRating = null
                 };

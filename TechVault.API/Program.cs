@@ -423,6 +423,20 @@ using (var scope = app.Services.CreateScope())
     var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
         ?? new IdentitySeedOptions();
 
+    // Local dev: guarantee a seedable admin even if IdentitySeed was cleared from appsettings.json.
+    if (app.Environment.IsDevelopment())
+    {
+        if (string.IsNullOrWhiteSpace(seedOptions.AdminEmail))
+        {
+            seedOptions.AdminEmail = "admin@example.com";
+        }
+
+        if (string.IsNullOrWhiteSpace(seedOptions.AdminPassword))
+        {
+            seedOptions.AdminPassword = "Admin123!Dev";
+        }
+    }
+
     await seeder.SeedAsync(seedOptions);
 
     var catalogSeeder = scope.ServiceProvider.GetRequiredService<CatalogDemoProductSeeder>();
