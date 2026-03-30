@@ -35,16 +35,18 @@ public sealed class ProductsController(
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"
     ];
 
-    /// <summary>Returns a single published product by id.</summary>
+    /// <summary>
+    /// Returns a single published product by id. When missing or not published, responds with 200 and JSON null
+    /// so browsers do not log a failed (404) request for SPA lookups.
+    /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProductDto>> GetProductById(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProductDto?>> GetProductById(int id, CancellationToken cancellationToken)
     {
         var product = await productCatalog.GetByIdAsync(id, cancellationToken);
         if (product is null || !product.IsPublished)
         {
-            return NotFound();
+            return Ok((ProductDto?)null);
         }
 
         return Ok(mapper.Map<ProductDto>(product));
