@@ -236,11 +236,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     ;(async () => {
       try {
-        // Avoid POST /auth/refresh when anonymous: browsers log 401 XHRs in the console even if axios does not throw.
-        const { data: session } = await authClient.get<{ hasRefreshCookie: boolean }>('/auth/session')
         const hasRt = refreshTokenRef.current ?? readStoredRefreshToken()
-        if (!session.hasRefreshCookie && !hasRt) {
-          return
+        // Skip POST /auth/refresh when clearly anonymous (needs GET /auth/session on the API).
+        try {
+          const res = await authClient.get<{ hasRefreshCookie: boolean }>('/auth/session', {
+            validateStatus: (s) => s === 200 || s === 404,
+          })
+          if (res.status === 200 && !res.data.hasRefreshCookie && !hasRt) {
+            return
+          }
+        } catch {
+          // Old server or transient error: fall through to refresh()
         }
 
         const token = await refresh()
