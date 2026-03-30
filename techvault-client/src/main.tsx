@@ -19,21 +19,21 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <QueryErrorResetBoundary>
         {({ reset }) => (
-          <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
-            <AuthProvider>
-              <BrowserRouter
-                future={{
-                  v7_startTransition: true,
-                  v7_relativeSplatPath: true,
-                }}
-              >
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
+              <AuthProvider>
                 <HelmetProvider>
                   <App />
                   <AppToaster />
                 </HelmetProvider>
-              </BrowserRouter>
-            </AuthProvider>
-          </ErrorBoundary>
+              </AuthProvider>
+            </ErrorBoundary>
+          </BrowserRouter>
         )}
       </QueryErrorResetBoundary>
     </QueryClientProvider>
