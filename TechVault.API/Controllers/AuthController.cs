@@ -3,8 +3,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TechVault.API.Data;
@@ -23,12 +25,14 @@ public class AuthController(
     IJwtTokenService jwtTokenService,
     AuthDbContext authDbContext,
     IDomainUserService domainUserService,
+    IWebHostEnvironment webHostEnvironment,
     ILogger<AuthController> logger)
     : ControllerBase
 {
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenDto dto)
+    public async Task<IActionResult> Logout(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenDto? dto)
     {
         var userId = ResolveCurrentUserId();
         if (string.IsNullOrWhiteSpace(userId))
@@ -36,14 +40,20 @@ public class AuthController(
             return Unauthorized();
         }
 
-        var refreshToken = await authDbContext.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == dto.RefreshToken && rt.UserId == userId);
-
-        if (refreshToken != null && !refreshToken.IsRevoked)
+        var tokenValue = dto?.RefreshToken ?? Request.Cookies[AuthCookieNames.Refresh];
+        if (!string.IsNullOrWhiteSpace(tokenValue))
         {
-            refreshToken.RevokedAtUtc = DateTime.UtcNow;
-            await authDbContext.SaveChangesAsync();
+            var refreshToken = await authDbContext.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.Token == tokenValue && rt.UserId == userId);
+
+            if (refreshToken != null && !refreshToken.IsRevoked)
+            {
+                refreshToken.RevokedAtUtc = DateTime.UtcNow;
+                await authDbContext.SaveChangesAsync();
+            }
         }
+
+        DeleteRefreshCookie();
 
         // Idempotent: do not leak whether a token existed.
         return NoContent();
@@ -83,6 +93,15 @@ public class AuthController(
             ProfilePicture = profilePicture,
             Roles = roles
         });
+    }
+
+    /// <summary>Lets the SPA skip POST /auth/refresh when there is no refresh cookie and no stored token (reduces anonymous 401 noise).</summary>
+    [HttpGet("session")]
+    public ActionResult<AuthSessionBootstrapDto> SessionBootstrap()
+    {
+        var raw = Request.Cookies[AuthCookieNames.Refresh];
+        var hasCookie = !string.IsNullOrWhiteSpace(raw);
+        return Ok(new AuthSessionBootstrapDto { HasRefreshCookie = hasCookie });
     }
 
     [HttpPost("register")]
@@ -192,10 +211,17 @@ public class AuthController(
     }
 
     [HttpPost("refresh")]
-    public async Task<ActionResult<AuthResponseDto>> Refresh([FromBody] RefreshTokenDto dto)
+    public async Task<ActionResult<AuthResponseDto>> Refresh(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenDto? dto)
     {
+        var tokenValue = Request.Cookies[AuthCookieNames.Refresh] ?? dto?.RefreshToken;
+        if (string.IsNullOrWhiteSpace(tokenValue))
+        {
+            return Unauthorized();
+        }
+
         var refreshToken = await authDbContext.RefreshTokens
-            .SingleOrDefaultAsync(rt => rt.Token == dto.RefreshToken);
+            .SingleOrDefaultAsync(rt => rt.Token == tokenValue);
 
         if (refreshToken == null)
         {
@@ -245,12 +271,14 @@ public class AuthController(
                 await authDbContext.SaveChangesAsync();
                 await tx.CommitAsync();
 
-                return Ok(new AuthResponseDto
+                var authResponse = new AuthResponseDto
                 {
                     AccessToken = jwt.AccessToken,
                     AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
                     RefreshToken = jwt.RefreshToken
-                });
+                };
+                AppendRefreshCookie(jwt.RefreshToken);
+                return Ok(authResponse);
             }
             catch
             {
@@ -284,12 +312,45 @@ public class AuthController(
 
         await authDbContext.SaveChangesAsync();
 
-        return new AuthResponseDto
+        var result = new AuthResponseDto
         {
             AccessToken = jwt.AccessToken,
             AccessTokenExpiresAtUtc = jwt.AccessTokenExpiresAtUtc,
             RefreshToken = jwt.RefreshToken
         };
+        AppendRefreshCookie(jwt.RefreshToken);
+        return result;
+    }
+
+    private CookieOptions BuildRefreshCookieOptions()
+    {
+        var secure = webHostEnvironment.IsProduction() || Request.IsHttps;
+        return new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = secure,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/v1",
+            MaxAge = TimeSpan.FromDays(30),
+            IsEssential = true,
+        };
+    }
+
+    private void AppendRefreshCookie(string refreshTokenValue)
+    {
+        Response.Cookies.Append(AuthCookieNames.Refresh, refreshTokenValue, BuildRefreshCookieOptions());
+    }
+
+    private void DeleteRefreshCookie()
+    {
+        var secure = webHostEnvironment.IsProduction() || Request.IsHttps;
+        Response.Cookies.Delete(AuthCookieNames.Refresh, new CookieOptions
+        {
+            Path = "/api/v1",
+            SameSite = SameSiteMode.Lax,
+            Secure = secure,
+            HttpOnly = true,
+        });
     }
 
     private async Task RollbackFailedRegistrationAsync(ApplicationUser user)

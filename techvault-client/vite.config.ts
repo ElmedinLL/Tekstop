@@ -1,19 +1,26 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5092',
-        changeOrigin: true,
-      },
-      // Product/category images are served from API wwwroot (e.g. /images/products/...)
-      '/images': {
-        target: 'http://localhost:5092',
-        changeOrigin: true,
+// 502 Bad Gateway on /api/* usually means nothing is listening on this URL — start TechVault.API (`dotnet run`) first.
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiTarget = env.VITE_PROXY_TARGET?.trim() || 'http://localhost:5092'
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/images': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-  },
+  }
 })

@@ -169,9 +169,11 @@ if (corsOrigins is not { Length: > 0 })
     corsOrigins =
     [
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost",
         "http://127.0.0.1",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
     ];
 }
 
@@ -494,6 +496,13 @@ app.UseSerilogRequestLogging(options =>
             return LogEventLevel.Error;
         }
 
+        // Unauthenticated refresh on startup is normal (no cookie / no stored refresh token).
+        if (httpContext.Response.StatusCode == 401
+            && path.Value?.Contains("/auth/refresh", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return LogEventLevel.Information;
+        }
+
         if (httpContext.Response.StatusCode >= 400)
         {
             return LogEventLevel.Warning;
@@ -503,7 +512,11 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
-app.UseHttpsRedirection();
+// HTTP-only local dev: avoids "Failed to determine the https port for redirect" when no HTTPS URL is in use.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseStaticFiles();
 
