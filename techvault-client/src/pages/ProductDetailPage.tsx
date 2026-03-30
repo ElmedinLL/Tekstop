@@ -13,7 +13,7 @@ import { useAddCartItemMutation } from '../hooks/useCart'
 import { Seo } from '../components/Seo'
 import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
-import { fetchProductDetail } from '../hooks/useProduct'
+import { fetchProductDetail, isProductNotFoundError, productDetailQueryRetry } from '../hooks/useProduct'
 import { toast } from '../lib/notifications'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
@@ -37,6 +37,7 @@ export function ProductDetailPage() {
     queryKey: ['product', id],
     queryFn: () => fetchProductDetail(id),
     enabled: validId,
+    retry: productDetailQueryRetry,
   })
 
   const reviewsQuery = useQuery({
@@ -91,7 +92,8 @@ export function ProductDetailPage() {
   }, [product])
 
   const notFound =
-    isError && axios.isAxiosError(error) && error.response?.status === 404
+    isError &&
+    (isProductNotFoundError(error) || (axios.isAxiosError(error) && error.response?.status === 404))
 
   if (!validId) {
     return (

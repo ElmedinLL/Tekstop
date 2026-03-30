@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Seo } from '../components/Seo'
-import { fetchProductDetail } from '../hooks/useProduct'
+import { fetchProductDetail, productDetailQueryRetry } from '../hooks/useProduct'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 import type { ProductDetail } from '../types/product'
@@ -44,6 +44,7 @@ export function ComparePage() {
       queryKey: ['product', id] as const,
       queryFn: () => fetchProductDetail(id),
       enabled: id > 0,
+      retry: productDetailQueryRetry,
     })),
   })
 

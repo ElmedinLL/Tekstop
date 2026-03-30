@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 import { ProductCard } from '../components/ProductCard'
 import { ProductGrid } from '../components/ProductGrid'
 import { Seo } from '../components/Seo'
-import { fetchProductDetail } from '../hooks/useProduct'
+import { fetchProductDetail, productDetailQueryRetry } from '../hooks/useProduct'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
 import type { CategoryListItem } from '../types/category'
@@ -43,6 +43,7 @@ export function HomePage() {
       queryFn: () => fetchProductDetail(id),
       enabled: id > 0,
       staleTime: 60_000,
+      retry: productDetailQueryRetry,
     })),
   })
 
