@@ -5,7 +5,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4?logo=dotnet)](https://learn.microsoft.com/aspnet/core/)
 [![Entity Framework Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4?logo=dotnet)](https://learn.microsoft.com/ef/core/)
-[![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-16-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
 [![Swagger / OpenAPI](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://swagger.io/)
 
 ---
@@ -15,7 +15,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 | Area | Technology |
 |------|------------|
 | Runtime | .NET 8, ASP.NET Core Web API |
-| Data | EF Core 8, Pomelo MySQL provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity) |
+| Data | EF Core 8, SQL Server provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity; separate migration history tables) |
 | Auth | ASP.NET Core Identity, JWT Bearer, refresh tokens |
 | Validation | FluentValidation |
 | Payments | Stripe.net |
@@ -35,7 +35,7 @@ TechVault.API/
 ├── Auth/                  # Identity user, JWT helpers, seed options
 ├── Caching/               # Catalog list cache
 ├── Controllers/           # API endpoints (versioned routes)
-├── Data/                  # DbContexts, EF migrations, design-time factories
+├── Data/                  # DbContexts, Auth migrations (`Data/Migrations/Auth`), design-time factories
 ├── Docs/                  # Internal docs (e.g. API versioning)
 ├── Errors/                # ProblemDetails-style error payloads
 ├── Health/                # Health check helpers
@@ -52,6 +52,7 @@ TechVault.API/
 ├── Services/              # Business services (orders, cart, admin, Stripe, …)
 ├── Swagger/               # Versioned OpenAPI configuration
 ├── Validation/            # FluentValidation validators
+├── Migrations/            # Domain EF Core migrations (`ApplicationDbContext`)
 ├── appsettings*.json      # Configuration (use .example as template)
 └── wwwroot/               # Static files (e.g. product images)
 ```
@@ -61,7 +62,7 @@ TechVault.API/
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- MySQL 8.x (local or remote)
+- SQL Server 2019+ or SQL Server Express / LocalDB (local, Docker, or Azure); same logical database is used for domain + Identity contexts
 - Optional: [Stripe](https://stripe.com/) account for payments; SMTP for transactional email
 
 ---
@@ -79,19 +80,18 @@ TechVault.API/
 
    On Linux/macOS: `cp appsettings.example.json appsettings.json`
 
-3. **Configure MySQL**  
-   Set `ConnectionStrings:DefaultConnection` in `appsettings.json` (or use environment variables / user secrets) to point at your database.
+3. **Configure SQL Server**  
+   Set `ConnectionStrings:DefaultConnection` in `appsettings.json` (or use environment variables / user secrets). For local Windows auth the example uses `Trusted_Connection=True`. For SQL authentication, use `User Id=...;Password=...;` instead (keep `TrustServerCertificate=True` in development when appropriate).
 
 4. **JWT**  
    Set `Jwt:Secret` to a random string **at least 32 characters** (required at startup).
 
-5. **Apply EF Core migrations** (domain schema):
+5. **Apply EF Core migrations** (domain schema, then Identity — same database, different migration history tables):
 
    ```bash
    dotnet ef database update --project TechVault.API.csproj --context ApplicationDbContext
+   dotnet ef database update --project TechVault.API.csproj --context AuthDbContext
    ```
-
-   If you maintain Identity migrations separately, apply `AuthDbContext` the same way when applicable.
 
 6. **Run the API**
 
@@ -113,13 +113,13 @@ TechVault.API/
 
 ## Docker (full stack)
 
-From the repository parent folder **`Tekstop`**, use **`docker-compose.yml`**: MySQL, phpMyAdmin, this API, and the React client behind Nginx (proxies `/api` to the API). Copy **`Tekstop/.env.example`** → **`.env`**, then:
+From the **repository root**, use **`docker-compose.yml`**: SQL Server, this API, and the React client behind Nginx (proxies `/api` to the API). Copy **`.env.example`** → **`.env`** (set `MSSQL_SA_PASSWORD` and `JWT_SECRET`), then:
 
 ```bash
 docker compose up -d --build
 ```
 
-Apply EF migrations against the exposed MySQL port (see comments at the top of `docker-compose.yml`). **`Cors:AllowedOrigins`** is configurable; the compose file sets origins for `http://localhost` and the Vite dev port by default.
+Apply EF migrations against the exposed SQL Server port **1433** (see comments at the top of `docker-compose.yml`); run both `ApplicationDbContext` and `AuthDbContext` updates. Use SSMS, Azure Data Studio, or `sqlcmd` to inspect the database instead of phpMyAdmin.
 
 ---
 
@@ -129,7 +129,7 @@ Configuration follows standard ASP.NET Core: `appsettings.json`, `appsettings.{E
 
 | Section / key | Purpose |
 |---------------|---------|
-| `ConnectionStrings:DefaultConnection` | MySQL connection string (shared DB for domain + Identity in typical setups) |
+| `ConnectionStrings:DefaultConnection` | SQL Server connection string (shared DB for domain + Identity; Auth migrations use table `__EFAuthMigrationsHistory`) |
 | `Cors:AllowedOrigins` | String array of allowed browser origins (credentials). If omitted, defaults include `http://localhost:5173`, `http://localhost`, and `http://127.0.0.1`. |
 | `Jwt:Secret` | HS256 signing key (≥ 32 chars) |
 | `Jwt:Issuer` | JWT issuer |

@@ -80,13 +80,13 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
-var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
+    options.UseSqlServer(
+        connectionString,
+        sql => sql.MigrationsHistoryTable("__EFAuthMigrationsHistory")));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("application_database")
@@ -364,9 +364,6 @@ ApplicationUptime.MarkStarted();
 
 using (var scope = app.Services.CreateScope())
 {
-    var appDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await EnsureProductImagesTable.ExecuteAsync(appDb);
-
     var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
     var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
         ?? new IdentitySeedOptions();

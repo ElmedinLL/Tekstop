@@ -9,11 +9,11 @@ using TechVault.API.Data;
 
 #nullable disable
 
-namespace TechVault.API.Data.Migrations
+namespace TechVault.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260324214656_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260408145226_InitialSqlServer")]
+    partial class InitialSqlServer
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,9 +21,9 @@ namespace TechVault.API.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.11")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("TechVault.API.Models.Address", b =>
                 {
@@ -31,58 +31,58 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Country")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<bool>("IsDefaultBilling")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDefaultShipping")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Line1")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Line2")
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("PostalCode")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Region")
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -100,7 +100,12 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("IdentityUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
@@ -109,16 +114,13 @@ namespace TechVault.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
-                    b.HasIndex("UserId", "ProductId")
+                    b.HasIndex("IdentityUserId", "ProductId")
                         .IsUnique();
 
                     b.ToTable("CartItems");
@@ -130,22 +132,26 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(160)
-                        .HasColumnType("varchar(160)");
+                        .HasColumnType("nvarchar(160)");
 
                     b.Property<int?>("ParentCategoryId")
                         .HasColumnType("int");
@@ -153,7 +159,7 @@ namespace TechVault.API.Data.Migrations
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(180)
-                        .HasColumnType("varchar(180)");
+                        .HasColumnType("nvarchar(180)");
 
                     b.HasKey("Id");
 
@@ -212,68 +218,139 @@ namespace TechVault.API.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.Coupon", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MinOrderValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("UsageCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Coupons");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Order", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BillingCity")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("BillingCountry")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("BillingFullName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("BillingLine1")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("BillingLine2")
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("BillingPostalCode")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("BillingRegion")
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ConfirmedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(8)
-                        .HasColumnType("varchar(8)");
+                        .HasColumnType("nvarchar(8)");
 
                     b.Property<DateTime?>("DeliveredAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime?>("PaidAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("PlacedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ProcessingAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ShippedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("ShippingAddressId")
                         .HasColumnType("int");
@@ -285,39 +362,39 @@ namespace TechVault.API.Data.Migrations
                     b.Property<string>("ShippingCity")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ShippingCountry")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ShippingFullName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("ShippingLine1")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("ShippingLine2")
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("ShippingPhone")
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("ShippingPostalCode")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("ShippingRegion")
                         .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -334,10 +411,16 @@ namespace TechVault.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("UserId")
+                    b.Property<string>("TrackingUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdentityUserId");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
@@ -347,6 +430,8 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("ShippingAddressId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("IdentityUserId", "Status");
 
                     b.HasIndex("UserId", "Status");
 
@@ -359,7 +444,7 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("LineTotal")
                         .HasPrecision(18, 2)
@@ -374,12 +459,12 @@ namespace TechVault.API.Data.Migrations
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("ProductSku")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -397,17 +482,67 @@ namespace TechVault.API.Data.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("ExternalChargeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ExternalPaymentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalPaymentId")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("Payments");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("AverageRating")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal(4,2)");
 
                     b.Property<string>("Brand")
                         .HasMaxLength(120)
-                        .HasColumnType("varchar(120)");
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
@@ -417,52 +552,75 @@ namespace TechVault.API.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(2048)
-                        .HasColumnType("varchar(2048)");
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("ImagesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsPublished")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("ReviewCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("ShortDescription")
                         .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(280)
-                        .HasColumnType("varchar(280)");
+                        .HasColumnType("nvarchar(280)");
+
+                    b.Property<string>("SpecsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StockQuantity")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Brand");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("Name");
 
                     b.HasIndex("Sku")
                         .IsUnique();
@@ -483,9 +641,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 1099.99m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/probook-14.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "TechVault ProBook 14",
                             Price = 999.99m,
+                            ReviewCount = 0,
                             ShortDescription = "14\" business ultrabook",
                             Sku = "TV-LAP-001",
                             Slug = "techvault-probook-14",
@@ -498,9 +658,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 1,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/blade-16.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "TechVault Blade 16",
                             Price = 1899.00m,
+                            ReviewCount = 0,
                             ShortDescription = "16\" creator laptop",
                             Sku = "TV-LAP-002",
                             Slug = "techvault-blade-16",
@@ -514,9 +676,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 849.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/air-13.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "TechVault Air 13",
                             Price = 799.00m,
+                            ReviewCount = 0,
                             ShortDescription = "13\" lightweight daily driver",
                             Sku = "TV-LAP-003",
                             Slug = "techvault-air-13",
@@ -529,9 +693,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 1,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/station-17.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "TechVault Station 17",
                             Price = 2499.00m,
+                            ReviewCount = 0,
                             ShortDescription = "17\" workstation",
                             Sku = "TV-LAP-004",
                             Slug = "techvault-station-17",
@@ -545,9 +711,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 749.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/gpu-780.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "NovaGraph RTX 780",
                             Price = 699.00m,
+                            ReviewCount = 0,
                             ShortDescription = "High-end graphics card",
                             Sku = "TV-GPU-001",
                             Slug = "novagraph-rtx-780",
@@ -560,9 +728,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 2,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/cpu-i9.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "CorePeak i9-14900K",
                             Price = 549.00m,
+                            ReviewCount = 0,
                             ShortDescription = "Desktop CPU unlocked",
                             Sku = "TV-CPU-001",
                             Slug = "corepeak-i9-14900k",
@@ -576,9 +746,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 149.99m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/ram-32gb.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "RAMBurst DDR5 32GB Kit",
                             Price = 129.99m,
+                            ReviewCount = 0,
                             ShortDescription = "2x16GB DDR5-6000",
                             Sku = "TV-RAM-001",
                             Slug = "ramburst-ddr5-32gb",
@@ -591,9 +763,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 2,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/ssd-2tb.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "FlashForge NVMe 2TB",
                             Price = 179.00m,
+                            ReviewCount = 0,
                             ShortDescription = "PCIe Gen4 SSD",
                             Sku = "TV-SSD-001",
                             Slug = "flashforge-nvme-2tb",
@@ -607,9 +781,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 139.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/kb-rgb.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "KeyForge Mechanical RGB",
                             Price = 119.00m,
+                            ReviewCount = 0,
                             ShortDescription = "TKL mechanical keyboard",
                             Sku = "TV-KB-001",
                             Slug = "keyforge-mechanical-rgb",
@@ -622,9 +798,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 3,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mouse-wl.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "GlideAir Wireless Mouse",
                             Price = 59.99m,
+                            ReviewCount = 0,
                             ShortDescription = "Ergonomic wireless mouse",
                             Sku = "TV-MS-001",
                             Slug = "glideair-wireless-mouse",
@@ -638,9 +816,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 99.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/headset.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "SoundArc 7.1 Headset",
                             Price = 89.00m,
+                            ReviewCount = 0,
                             ShortDescription = "USB gaming headset",
                             Sku = "TV-HS-001",
                             Slug = "soundarc-71-headset",
@@ -653,9 +833,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 3,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/webcam.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "ClearView 4K Webcam",
                             Price = 129.00m,
+                            ReviewCount = 0,
                             ShortDescription = "Auto-focus conference cam",
                             Sku = "TV-WC-001",
                             Slug = "clearview-4k-webcam",
@@ -669,9 +851,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 229.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mon-24.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "PixelPro 24\" FHD",
                             Price = 199.00m,
+                            ReviewCount = 0,
                             ShortDescription = "1080p 144Hz IPS",
                             Sku = "TV-MON-001",
                             Slug = "pixelpro-24-fhd",
@@ -684,9 +868,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 4,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mon-27.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "PixelPro 27\" QHD",
                             Price = 349.00m,
+                            ReviewCount = 0,
                             ShortDescription = "1440p 165Hz IPS",
                             Sku = "TV-MON-002",
                             Slug = "pixelpro-27-qhd",
@@ -700,9 +886,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 649.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mon-32.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "PixelPro 32\" 4K",
                             Price = 599.00m,
+                            ReviewCount = 0,
                             ShortDescription = "4K HDR creator panel",
                             Sku = "TV-MON-003",
                             Slug = "pixelpro-32-4k",
@@ -715,9 +903,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 4,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mon-portable.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "TravelPanel 15\" USB-C",
                             Price = 249.00m,
+                            ReviewCount = 0,
                             ShortDescription = "Portable USB-C monitor",
                             Sku = "TV-MON-004",
                             Slug = "travelpanel-15-usbc",
@@ -731,9 +921,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 299.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/router.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "LinkHub AX6000 Router",
                             Price = 279.00m,
+                            ReviewCount = 0,
                             ShortDescription = "Wi-Fi 6E router",
                             Sku = "TV-NET-001",
                             Slug = "linkhub-ax6000-router",
@@ -746,9 +938,11 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 5,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/switch.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "LinkHub 8-Port Switch",
                             Price = 39.99m,
+                            ReviewCount = 0,
                             ShortDescription = "Gigabit unmanaged switch",
                             Sku = "TV-NET-002",
                             Slug = "linkhub-8port-switch",
@@ -762,9 +956,11 @@ namespace TechVault.API.Data.Migrations
                             CompareAtPrice = 359.00m,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/mesh.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "LinkHub Mesh Trio",
                             Price = 329.00m,
+                            ReviewCount = 0,
                             ShortDescription = "Whole-home mesh Wi-Fi",
                             Sku = "TV-NET-003",
                             Slug = "linkhub-mesh-trio",
@@ -777,14 +973,42 @@ namespace TechVault.API.Data.Migrations
                             CategoryId = 5,
                             CreatedAtUtc = new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             ImageUrl = "/images/products/cables.jpg",
+                            IsDeleted = false,
                             IsPublished = true,
                             Name = "CableCraft Cat6 Kit",
                             Price = 24.99m,
+                            ReviewCount = 0,
                             ShortDescription = "25ft patch cables (5-pack)",
                             Sku = "TV-NET-004",
                             Slug = "cablecraft-cat6-kit",
                             StockQuantity = 200
                         });
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.ProductImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.ProductTag", b =>
@@ -1010,30 +1234,30 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comment")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsApproved")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
                     b.Property<byte>("Rating")
-                        .HasColumnType("tinyint unsigned");
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -1045,7 +1269,10 @@ namespace TechVault.API.Data.Migrations
                     b.HasIndex("UserId", "ProductId")
                         .IsUnique();
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Reviews_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+                        });
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Tag", b =>
@@ -1054,17 +1281,17 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
+                        .HasColumnType("nvarchar(80)");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(96)
-                        .HasColumnType("varchar(96)");
+                        .HasColumnType("nvarchar(96)");
 
                     b.HasKey("Id");
 
@@ -1118,52 +1345,87 @@ namespace TechVault.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("IdentityUserId")
+                        .IsUnique()
+                        .HasFilter("[IdentityUserId] IS NOT NULL");
+
                     b.HasIndex("Role");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.WishlistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("WishlistItems");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Address", b =>
@@ -1185,15 +1447,7 @@ namespace TechVault.API.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TechVault.API.Models.User", "User")
-                        .WithMany("CartItems")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Product");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
@@ -1216,8 +1470,7 @@ namespace TechVault.API.Data.Migrations
                     b.HasOne("TechVault.API.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ShippingAddress");
 
@@ -1243,6 +1496,17 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.Payment", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
                 {
                     b.HasOne("TechVault.API.Models.Category", "Category")
@@ -1252,6 +1516,17 @@ namespace TechVault.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("TechVault.API.Models.ProductImage", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Product", "Product")
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.ProductTag", b =>
@@ -1292,6 +1567,25 @@ namespace TechVault.API.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TechVault.API.Models.WishlistItem", b =>
+                {
+                    b.HasOne("TechVault.API.Models.Product", "Product")
+                        .WithMany("WishlistItems")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TechVault.API.Models.User", "User")
+                        .WithMany("WishlistItems")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TechVault.API.Models.Category", b =>
                 {
                     b.Navigation("ChildCategories");
@@ -1302,17 +1596,23 @@ namespace TechVault.API.Data.Migrations
             modelBuilder.Entity("TechVault.API.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Product", b =>
                 {
                     b.Navigation("CartItems");
 
+                    b.Navigation("Images");
+
                     b.Navigation("OrderItems");
 
                     b.Navigation("ProductTags");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("WishlistItems");
                 });
 
             modelBuilder.Entity("TechVault.API.Models.Tag", b =>
@@ -1324,11 +1624,11 @@ namespace TechVault.API.Data.Migrations
                 {
                     b.Navigation("Addresses");
 
-                    b.Navigation("CartItems");
-
                     b.Navigation("Orders");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("WishlistItems");
                 });
 #pragma warning restore 612, 618
         }

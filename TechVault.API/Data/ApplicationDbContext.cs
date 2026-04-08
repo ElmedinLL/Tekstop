@@ -135,7 +135,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Brand);
             entity.HasIndex(e => e.IsDeleted);
 
-            entity.HasIndex(e => new { e.Name, e.Description }).IsFullText();
+            entity.HasIndex(e => e.Name);
 
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.Slug).HasMaxLength(280);
@@ -143,8 +143,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Sku).HasMaxLength(64);
             entity.Property(e => e.Brand).HasMaxLength(120);
             entity.Property(e => e.ImageUrl).HasMaxLength(2048);
-            entity.Property(e => e.ImagesJson).HasColumnType("longtext");
-            entity.Property(e => e.SpecsJson).HasColumnType("longtext");
+            entity.Property(e => e.ImagesJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.SpecsJson).HasColumnType("nvarchar(max)");
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.CompareAtPrice).HasPrecision(18, 2);
             entity.Property(e => e.AverageRating).HasPrecision(4, 2);
@@ -268,10 +268,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BillingCountry).HasMaxLength(128);
             entity.Property(e => e.IdentityUserId).HasMaxLength(450);
 
-            entity.Property(e => e.ConfirmedAtUtc).HasColumnType("datetime(6)");
-            entity.Property(e => e.ProcessingAtUtc).HasColumnType("datetime(6)");
-            entity.Property(e => e.CancelledAtUtc).HasColumnType("datetime(6)");
-
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Orders)
                 .HasForeignKey(e => e.UserId)
@@ -339,7 +335,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable(
                 "Reviews",
-                t => t.HasCheckConstraint("CK_Reviews_Rating", "`Rating` >= 1 AND `Rating` <= 5"));
+                t => t.HasCheckConstraint("CK_Reviews_Rating", "[Rating] >= 1 AND [Rating] <= 5"));
 
             entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
             entity.HasIndex(e => e.ProductId);

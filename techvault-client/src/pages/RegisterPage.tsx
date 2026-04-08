@@ -97,6 +97,7 @@ export function RegisterPage() {
       await register({
         email: email.trim(),
         password,
+        confirmPassword,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       })
@@ -117,6 +118,7 @@ export function RegisterPage() {
             if (normalized.includes('firstname')) model.firstName = msg
             else if (normalized.includes('lastname')) model.lastName = msg
             else if (normalized.includes('email')) model.email = msg
+            else if (normalized.includes('confirmpassword')) model.confirmPassword = msg
             else if (normalized.includes('password')) model.password = msg
           }
           if (Object.keys(model).length > 0) {

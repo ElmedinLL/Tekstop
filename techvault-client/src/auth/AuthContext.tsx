@@ -45,6 +45,8 @@ type LoginInput = {
 type RegisterInput = {
   email: string
   password: string
+  /** Must match `password`; required by API (`RegisterDto.ConfirmPassword`). */
+  confirmPassword: string
   firstName: string
   lastName: string
 }

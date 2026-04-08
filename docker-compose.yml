@@ -1,54 +1,38 @@
-# TechVault stack: MySQL, phpMyAdmin, .NET API, React SPA (Nginx + /api proxy)
+# TechVault stack: SQL Server, .NET API, React SPA (Nginx + /api proxy)
 #
 # Usage:
-#   1. Copy .env.example → .env and set secrets (especially MYSQL_ROOT_PASSWORD, JWT_SECRET).
+#   1. Copy .env.example → .env and set secrets (especially MSSQL_SA_PASSWORD, JWT_SECRET).
+#      SA password must meet SQL Server policy (length, upper/lower/digit/symbol).
 #   2. docker compose up -d --build
-#  3. Apply EF migrations to the MySQL instance (from host, with .NET SDK):
-#       dotnet ef database update --project TechVault.API/TechVault.API.csproj --context ApplicationDbContext ^
-#         --connection "Server=127.0.0.1;Port=3306;Database=${MYSQL_DATABASE};User=root;Password=YOUR_PASSWORD;"
-#     (Or run a one-off migrate container with the SDK image.)
+#   3. Apply EF migrations from the host (.NET SDK), pointing at the exposed SQL Server port:
+#        dotnet ef database update --project TechVault.API/TechVault.API.csproj --context ApplicationDbContext ^
+#          --connection "Server=127.0.0.1,1433;Database=${MSSQL_DATABASE};User Id=sa;Password=YOUR_SA_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=True"
+#        dotnet ef database update --project TechVault.API/TechVault.API.csproj --context AuthDbContext ^
+#          --connection "Server=127.0.0.1,1433;Database=${MSSQL_DATABASE};User Id=sa;Password=YOUR_SA_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=True"
 #
 # URLs (default ports):
 #   - Frontend:     http://localhost
 #   - API + Swagger http://localhost:5000/swagger  (Development env only shows Swagger)
-#   - phpMyAdmin:   http://localhost:8081
-#   - MySQL:        localhost:3306
+#   - SQL Server:   localhost:1433
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: techvault-mysql
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: techvault-sqlserver
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-techvault}
-      TZ: UTC
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${MSSQL_PORT:-1433}:1433"
     volumes:
-      - techvault_mysql_data:/var/lib/mysql
+      - techvault_sqlserver_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-      interval: 5s
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 20s
-
-  phpmyadmin:
-    image: phpmyadmin:5-apache
-    container_name: techvault-phpmyadmin
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-      UPLOAD_LIMIT: 64M
-    ports:
-      - "${PHPMYADMIN_PORT:-8081}:80"
+      retries: 20
+      start_period: 60s
 
   api:
     build:
@@ -57,36 +41,31 @@ services:
     container_name: techvault-api
     restart: unless-stopped
     depends_on:
-      mysql:
+      sqlserver:
         condition: service_healthy
     ports:
       - "${API_PORT:-5000}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
-      # Database (Pomelo MySQL)
       ConnectionStrings__DefaultConnection: >-
-        Server=mysql;
-        Port=3306;
-        Database=${MYSQL_DATABASE:-techvault};
-        User=root;
-        Password=${MYSQL_ROOT_PASSWORD};
-        TreatTinyAsBoolean=true;
-      # JWT (Secret must be ≥ 32 characters — enforced at startup)
+        Server=sqlserver;
+        Database=${MSSQL_DATABASE:-techvault};
+        User Id=sa;
+        Password=${MSSQL_SA_PASSWORD};
+        TrustServerCertificate=True;
+        MultipleActiveResultSets=True;
       Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET in .env (min 32 chars)}
       Jwt__Issuer: ${JWT_ISSUER:-TechVault}
       Jwt__Audience: ${JWT_AUDIENCE:-TechVault.API}
       Jwt__ExpiryInDays: ${JWT_EXPIRY_DAYS:-7}
-      # CORS: browser origin when using Nginx on port 80
       Cors__AllowedOrigins__0: ${CORS_ORIGIN_0:-http://localhost}
       Cors__AllowedOrigins__1: ${CORS_ORIGIN_1:-http://127.0.0.1}
       Cors__AllowedOrigins__2: ${CORS_ORIGIN_2:-http://localhost:5173}
-      # Stripe (optional for local demo)
       Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
       Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
       Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
       Stripe__Currency: ${STRIPE_CURRENCY:-usd}
-      # SMTP (optional)
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-587}
       Smtp__UserName: ${SMTP_USER:-}
@@ -94,7 +73,6 @@ services:
       Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
       Smtp__FromName: ${SMTP_FROM_NAME:-TechVault}
       Smtp__UseSsl: ${SMTP_USE_SSL:-true}
-      # Optional admin seed (leave empty to skip)
       IdentitySeed__AdminEmail: ${ADMIN_EMAIL:-}
       IdentitySeed__AdminPassword: ${ADMIN_PASSWORD:-}
       IdentitySeed__AdminFirstName: ${ADMIN_FIRST_NAME:-System}
@@ -112,4 +90,4 @@ services:
       - "${WEB_PORT:-80}:80"
 
 volumes:
-  techvault_mysql_data:
+  techvault_sqlserver_data:

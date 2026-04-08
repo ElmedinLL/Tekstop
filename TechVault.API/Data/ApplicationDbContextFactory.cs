@@ -11,8 +11,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
     public ApplicationDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-        optionsBuilder.UseMySql(DesignTimeConnectionString.GetDefaultConnection(), serverVersion);
+        optionsBuilder.UseSqlServer(DesignTimeConnectionString.GetDefaultConnection());
 
         return new ApplicationDbContext(optionsBuilder.Options);
     }

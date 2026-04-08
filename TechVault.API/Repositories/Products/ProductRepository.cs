@@ -9,8 +9,6 @@ namespace TechVault.API.Repositories.Products;
 public sealed class ProductRepository(ApplicationDbContext context) : IProductRepository
 {
     private const int MaxSkuLength = 64;
-    /// <summary>InnoDB default minimum token length for full-text indexes; shorter terms use LIKE fallback.</summary>
-    private const int FullTextMinTokenLength = 3;
 
     public async Task<PagedResult<Product>> GetAllAsync(
         ProductListFilter? filter,
@@ -208,11 +206,12 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
                 continue;
             }
 
-            var path = "$." + key;
+            // Loose JSON substring match (EF translates to SQL Server CHARINDEX/LIKE).
+            var quoted = $"\"{key}\":\"{expected}\"";
+            var colonThen = $"\"{key}\":{expected}";
             query = query.Where(p =>
                 p.SpecsJson != null
-                && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(p.SpecsJson, new[] { path }))!.ToLower()
-                    == expected.ToLower());
+                && (p.SpecsJson.Contains(quoted) || p.SpecsJson.Contains(colonThen)));
         }
 
         return query;
@@ -226,18 +225,9 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         var term = searchTerm.Trim();
-        if (term.Length < FullTextMinTokenLength)
-        {
-            return query.Where(p =>
-                EF.Functions.Like(p.Name, "%" + term + "%")
-                || (p.Description != null && EF.Functions.Like(p.Description, "%" + term + "%")));
-        }
-
         return query.Where(p =>
-            EF.Functions.IsMatch(
-                new[] { p.Name, p.Description },
-                term,
-                MySqlMatchSearchMode.NaturalLanguage));
+            EF.Functions.Like(p.Name, "%" + term + "%")
+            || (p.Description != null && EF.Functions.Like(p.Description, "%" + term + "%")));
     }
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>
