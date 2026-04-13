@@ -5,7 +5,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4?logo=dotnet)](https://learn.microsoft.com/aspnet/core/)
 [![Entity Framework Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4?logo=dotnet)](https://learn.microsoft.com/ef/core/)
-[![SQL Server](https://img.shields.io/badge/SQL%20Server-16-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-Express%2FFull-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
 [![Swagger / OpenAPI](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?logo=swagger)](https://swagger.io/)
 
 ---
@@ -15,7 +15,7 @@ REST API for the TechVault e-commerce platform: catalog, cart, checkout, orders,
 | Area | Technology |
 |------|------------|
 | Runtime | .NET 8, ASP.NET Core Web API |
-| Data | EF Core 8, SQL Server provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity; separate migration history tables) |
+| Data | EF Core 8, SQL Server provider, dual contexts (`ApplicationDbContext` domain + `AuthDbContext` Identity; Auth uses migration history table `__EFAuthMigrationsHistory`) |
 | Auth | ASP.NET Core Identity, JWT Bearer, refresh tokens |
 | Validation | FluentValidation |
 | Payments | Stripe.net |
@@ -62,7 +62,7 @@ TechVault.API/
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- SQL Server 2019+ or SQL Server Express / LocalDB (local, Docker, or Azure); same logical database is used for domain + Identity contexts
+- **SQL Server LocalDB** (recommended for `dotnet run`; ships with Visual Studio / Build Tools), or SQL Server 2019+ / Express / full edition; same logical database is used for domain + Identity contexts
 - Optional: [Stripe](https://stripe.com/) account for payments; SMTP for transactional email
 
 ---
@@ -81,12 +81,14 @@ TechVault.API/
    On Linux/macOS: `cp appsettings.example.json appsettings.json`
 
 3. **Configure SQL Server**  
-   Set `ConnectionStrings:DefaultConnection` in `appsettings.json` (or use environment variables / user secrets). For local Windows auth the example uses `Trusted_Connection=True`. For SQL authentication, use `User Id=...;Password=...;` instead (keep `TrustServerCertificate=True` in development when appropriate).
+   **Default (zero setup):** `launchSettings.json` sets `ConnectionStrings__DefaultConnection` to **LocalDB** (`(localdb)\\mssqllocaldb`). On first `dotnet run`, EF applies migrations and **creates `TechVaultDB` automatically** (your Windows user is admin on LocalDB).
+
+   **SQL Express / remote server instead:** Remove or override that environment variable and set `ConnectionStrings:DefaultConnection` in `appsettings.json` (or user secrets). For Windows auth use `Trusted_Connection=True`; for SQL authentication use `User Id=...;Password=...;`. If you get **CREATE DATABASE permission denied**, use `Scripts/SqlExpress-SetupTechVault.sql` in SSMS as sysadmin.
 
 4. **JWT**  
    Set `Jwt:Secret` to a random string **at least 32 characters** (required at startup).
 
-5. **Apply EF Core migrations** (domain schema, then Identity — same database, different migration history tables):
+5. **Apply EF Core migrations** (both contexts target the same database; Auth uses table `__EFAuthMigrationsHistory`):
 
    ```bash
    dotnet ef database update --project TechVault.API.csproj --context ApplicationDbContext
@@ -109,17 +111,30 @@ TechVault.API/
 7. **Optional seed admin**  
    Set `IdentitySeed:AdminEmail` and `IdentitySeed:AdminPassword` in configuration so `IdentitySeeder` can create an **Admin** user on startup (see `appsettings.example.json`).
 
+### Troubleshooting: “Cannot open database TechVaultDB” / error 4060
+
+The server accepts your Windows login, but **your login is not allowed to use that database** (or the database was never created). Fix it once with **elevated rights** (sysadmin):
+
+1. Open **SQL Server Management Studio** (or Azure Data Studio) **as Administrator** if needed.
+2. Connect to your instance (e.g. `XHEVAT\SQLEXPRESS`) with Windows Authentication.
+3. Open and run **`Scripts/SqlExpress-SetupTechVault.sql`**, editing the `XHEVAT\elmedin` name if your Windows user string differs (check **Security → Logins** for the exact name).
+4. Restart the API. Migrations run automatically on startup (`Database.MigrateAsync`); you do not need to run `dotnet ef database update` manually unless you prefer to.
+
+**Prefer LocalDB for development** (default in `launchSettings.json`) to avoid permission issues: install [SQL Server Express LocalDB](https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb) if `(localdb)\mssqllocaldb` is missing.
+
+The API also enables **SQL transient retry** (`EnableRetryOnFailure`) for short-lived connection glitches; it does not fix permission or “database missing” errors on SQL Express without LocalDB.
+
 ---
 
 ## Docker (full stack)
 
-From the **repository root**, use **`docker-compose.yml`**: SQL Server, this API, and the React client behind Nginx (proxies `/api` to the API). Copy **`.env.example`** → **`.env`** (set `MSSQL_SA_PASSWORD` and `JWT_SECRET`), then:
+From the **repository root**, **`docker-compose.yml`** provisions **SQL Server**, this API, and the React client (see file header for MySQL legacy note). Copy **`.env.example`** → **`.env`** (set `MSSQL_SA_PASSWORD` and `JWT_SECRET`), then:
 
 ```bash
 docker compose up -d --build
 ```
 
-Apply EF migrations against the exposed SQL Server port **1433** (see comments at the top of `docker-compose.yml`); run both `ApplicationDbContext` and `AuthDbContext` updates. Use SSMS, Azure Data Studio, or `sqlcmd` to inspect the database instead of phpMyAdmin.
+Apply EF migrations against the exposed SQL Server port **1433** (see comments at the top of `docker-compose.yml`); run both `ApplicationDbContext` and `AuthDbContext` updates.
 
 ---
 

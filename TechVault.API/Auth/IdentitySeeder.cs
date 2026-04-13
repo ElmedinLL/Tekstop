@@ -17,11 +17,20 @@ public sealed class IdentitySeeder(
 
         if (string.IsNullOrWhiteSpace(options.AdminEmail) || string.IsNullOrWhiteSpace(options.AdminPassword))
         {
+            logger.LogWarning(
+                "IdentitySeed: AdminEmail or AdminPassword is empty; skipping admin user. Set IdentitySeed in appsettings (see appsettings.example.json).");
             return;
         }
 
         var adminEmail = options.AdminEmail.Trim();
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
+
+        // Clear lockout so earlier failed logins cannot block the next admin sign-in after restart.
+        if (adminUser is not null && userManager.SupportsUserLockout)
+        {
+            await userManager.SetLockoutEndDateAsync(adminUser, null);
+            await userManager.ResetAccessFailedCountAsync(adminUser);
+        }
         if (adminUser == null)
         {
             adminUser = new ApplicationUser
@@ -67,7 +76,8 @@ public sealed class IdentitySeeder(
             }
 
             logger.LogInformation(
-                "Identity seed: password and lockout synced for admin {Email} (Development or SyncAdminPassword).",
+                "Identity seed: password and lockout synced for admin {Email} (Development or SyncAdminPassword=true). " +
+                "Sign in with this email and the password from IdentitySeed:AdminPassword — not an older password from registration.",
                 adminEmail);
         }
 
@@ -79,6 +89,13 @@ public sealed class IdentitySeeder(
                 var errors = string.Join("; ", addRoleResult.Errors.Select(e => e.Description));
                 throw new InvalidOperationException($"Failed to assign Admin role to default admin user: {errors}");
             }
+        }
+
+        // Clear lockout so failed login attempts cannot block the seeded admin after restart.
+        if (userManager.SupportsUserLockout)
+        {
+            await userManager.SetLockoutEndDateAsync(adminUser, null);
+            await userManager.ResetAccessFailedCountAsync(adminUser);
         }
 
         logger.LogInformation("Identity seed: admin user {Email} has Admin role.", adminUser.Email);

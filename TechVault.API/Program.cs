@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -80,13 +82,41 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
+try
+{
+    var logCs = new SqlConnectionStringBuilder(connectionString);
+    Log.Information(
+        "Using SQL Server instance {DataSource}, database {Database} (from configuration; set ConnectionStrings:DefaultConnection in appsettings.json or user secrets).",
+        logCs.DataSource,
+        string.IsNullOrWhiteSpace(logCs.InitialCatalog) ? "(default)" : logCs.InitialCatalog);
+}
+catch
+{
+    // Ignore parse errors when logging.
+}
+
+static void ConfigureSqlServer(DbContextOptionsBuilder options, string cs, bool useAuthMigrationsHistoryTable)
+{
+    options.UseSqlServer(
+            cs,
+            sql =>
+            {
+                sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                sql.CommandTimeout(120);
+                if (useAuthMigrationsHistoryTable)
+                {
+                    sql.MigrationsHistoryTable("__EFAuthMigrationsHistory");
+                }
+            })
+        .ConfigureWarnings(w =>
+            w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    ConfigureSqlServer(options, connectionString, useAuthMigrationsHistoryTable: false));
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseSqlServer(
-        connectionString,
-        sql => sql.MigrationsHistoryTable("__EFAuthMigrationsHistory")));
+    ConfigureSqlServer(options, connectionString, useAuthMigrationsHistoryTable: true));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("application_database")
@@ -149,7 +179,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IdentitySeeder>();
 builder.Services.AddScoped<CatalogDemoProductSeeder>();
 
-builder.Services.AddAutoMapper(typeof(ProductMappingProfile).Assembly);
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(ProductMappingProfile).Assembly));
 
 const string CorsPolicyName = "Frontend";
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
@@ -158,9 +188,11 @@ if (corsOrigins is not { Length: > 0 })
     corsOrigins =
     [
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost",
         "http://127.0.0.1",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
     ];
 }
 
@@ -364,9 +396,82 @@ ApplicationUptime.MarkStarted();
 
 using (var scope = app.Services.CreateScope())
 {
+    var appDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+
+    try
+    {
+        await appDb.Database.MigrateAsync();
+        await authDb.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        int? sqlNumber = null;
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SqlException sx)
+            {
+                sqlNumber = sx.Number;
+                break;
+            }
+        }
+
+        switch (sqlNumber)
+        {
+            case 4060 or 18456 or 4064:
+                Log.Fatal(
+                    ex,
+                    "SQL Server rejected access to the database (error {SqlError}). See README or Scripts/SqlExpress-SetupTechVault.sql.",
+                    sqlNumber);
+                throw new InvalidOperationException(
+                    "Cannot open the TechVault database. Run Scripts/SqlExpress-SetupTechVault.sql as sysadmin, or set ConnectionStrings:DefaultConnection to (localdb)\\\\mssqllocaldb in appsettings.Development.json.",
+                    ex);
+            case 262:
+                Log.Fatal(
+                    ex,
+                    "CREATE DATABASE denied (error {SqlError}). Your SQL login cannot create databases on this instance.",
+                    sqlNumber);
+                throw new InvalidOperationException(
+                    "CREATE DATABASE was denied. Use Server=(localdb)\\mssqllocaldb in ConnectionStrings:DefaultConnection (appsettings.Development.json), " +
+                    "or ask an admin to create TechVaultDB and grant you access (Scripts/SqlExpress-SetupTechVault.sql).",
+                    ex);
+            default:
+                throw;
+        }
+    }
+
     var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
     var seedOptions = app.Configuration.GetSection(IdentitySeedOptions.SectionName).Get<IdentitySeedOptions>()
         ?? new IdentitySeedOptions();
+
+    // Local dev: guarantee a seedable admin even if IdentitySeed was cleared from appsettings.json.
+    if (app.Environment.IsDevelopment())
+    {
+        if (string.IsNullOrWhiteSpace(seedOptions.AdminEmail))
+        {
+            seedOptions.AdminEmail = "admin@example.com";
+        }
+
+        if (string.IsNullOrWhiteSpace(seedOptions.AdminPassword))
+        {
+            seedOptions.AdminPassword = "Admin123!Dev";
+        }
+    }
+    else if (string.IsNullOrWhiteSpace(seedOptions.AdminEmail)
+             || string.IsNullOrWhiteSpace(seedOptions.AdminPassword))
+    {
+        Log.Warning(
+            "IdentitySeed AdminEmail/AdminPassword are not set, but Environment is {Environment}. " +
+            "appsettings.Development.json is not loaded unless ASPNETCORE_ENVIRONMENT=Development — put IdentitySeed in appsettings.json (or Production-specific file) if you need a seeded admin.",
+            app.Environment.EnvironmentName);
+    }
+
+    if (!string.IsNullOrWhiteSpace(seedOptions.AdminEmail))
+    {
+        Log.Information(
+            "Identity seed will run for admin email {AdminEmail} (password value is never logged).",
+            seedOptions.AdminEmail.Trim());
+    }
 
     await seeder.SeedAsync(seedOptions);
 
@@ -374,6 +479,14 @@ using (var scope = app.Services.CreateScope())
     var catalogOptions = app.Configuration.GetSection(CatalogDemoSeedOptions.SectionName).Get<CatalogDemoSeedOptions>()
         ?? new CatalogDemoSeedOptions();
     await catalogSeeder.SeedAsync(catalogOptions);
+
+    var totalProducts = await appDb.Products.IgnoreQueryFilters().CountAsync();
+    var storefrontProducts = await appDb.Products
+        .CountAsync(p => p.IsPublished && p.StockQuantity > 0);
+    Log.Information(
+        "Catalog: {Total} product rows in database; {Storefront} are published and in stock (visible on the storefront).",
+        totalProducts,
+        storefrontProducts);
 }
 
 if (app.Environment.IsDevelopment())
@@ -425,6 +538,13 @@ app.UseSerilogRequestLogging(options =>
             return LogEventLevel.Error;
         }
 
+        // Unauthenticated refresh on startup is normal (no cookie / no stored refresh token).
+        if (httpContext.Response.StatusCode == 401
+            && path.Value?.Contains("/auth/refresh", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return LogEventLevel.Information;
+        }
+
         if (httpContext.Response.StatusCode >= 400)
         {
             return LogEventLevel.Warning;
@@ -434,7 +554,11 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
-app.UseHttpsRedirection();
+// HTTP-only local dev: avoids "Failed to determine the https port for redirect" when no HTTPS URL is in use.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseStaticFiles();
 
@@ -460,3 +584,5 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+public partial class Program { }

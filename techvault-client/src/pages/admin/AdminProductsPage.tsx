@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Seo } from '../../components/Seo'
-import { useQuery } from '@tanstack/react-query'
 import { Pagination } from '../../components/Pagination'
 import { fetchAdminProducts } from '../../lib/admin'
+import { deleteProduct } from '../../lib/adminProduct'
+import { toast } from '../../lib/notifications'
 import { resolveApiAssetUrl } from '../../lib/assetUrl'
 
 const PAGE_SIZES = [10, 20, 50] as const
@@ -62,6 +64,9 @@ function SortableTh({ label, column, activeSort, onChangeSort }: SortableThProps
 }
 
 export function AdminProductsPage() {
+  const queryClient = useQueryClient()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const pageSize = parsePageSize(searchParams.get('pageSize'))
@@ -104,6 +109,20 @@ export function AdminProductsPage() {
   const listQuery = useQuery({
     queryKey: ['admin', 'products', queryArgs],
     queryFn: () => fetchAdminProducts(queryArgs),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteProduct(id),
+    onSuccess: async () => {
+      toast.success('Product removed from catalog.')
+      setDeleteTarget(null)
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'low-stock'] })
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+    onError: () => {
+      toast.error('Could not delete product.')
+    },
   })
 
   const setSort = useCallback(
@@ -168,6 +187,47 @@ export function AdminProductsPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        {deleteTarget && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            role="presentation"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-delete-product-title"
+              className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="admin-delete-product-title" className="text-lg font-semibold text-slate-900">
+                Delete product?
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-900">{deleteTarget.name}</span> will be hidden from the store and
+                can be replaced with a new SKU later. This cannot be undone from the admin UI.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="border-b border-slate-100 p-4">
           <label className="block text-xs font-medium text-slate-600" htmlFor="admin-product-search">
             Search
@@ -293,6 +353,13 @@ export function AdminProductsPage() {
                             >
                               Edit
                             </Link>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                              className="text-sm font-medium text-red-600 hover:underline"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </td>
                       </tr>

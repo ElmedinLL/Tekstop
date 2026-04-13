@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
 import { fetchProductReviews } from '../lib/reviews'
 import { notifyCartAdded, notifyCartError } from '../lib/notifications'
 import { ProductImageGallery } from '../components/ProductImageGallery'
@@ -13,7 +12,7 @@ import { useAddCartItemMutation } from '../hooks/useCart'
 import { Seo } from '../components/Seo'
 import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
-import { fetchProductDetail } from '../hooks/useProduct'
+import { useProduct } from '../hooks/useProduct'
 import { toast } from '../lib/notifications'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
 import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
@@ -28,16 +27,7 @@ export function ProductDetailPage() {
   const id = idParam != null ? Number.parseInt(idParam, 10) : Number.NaN
   const validId = Number.isFinite(id) && id > 0
 
-  const {
-    data: product,
-    isPending,
-    isError,
-    error,
-  } = useQuery({
-    queryKey: ['product', id],
-    queryFn: () => fetchProductDetail(id),
-    enabled: validId,
-  })
+  const { data: product, isPending, isError } = useProduct(id)
 
   const reviewsQuery = useQuery({
     queryKey: ['product', id, 'reviews'],
@@ -90,9 +80,6 @@ export function ProductDetailPage() {
     return Object.entries(product.specs)
   }, [product])
 
-  const notFound =
-    isError && axios.isAxiosError(error) && error.response?.status === 404
-
   if (!validId) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
@@ -122,12 +109,25 @@ export function ProductDetailPage() {
     )
   }
 
-  if (notFound || isError) {
+  if (!isPending && product === null) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
         <Seo title="Product not found" description="This product is unavailable or may have been removed." />
         <h1 className="text-xl font-semibold text-slate-900">Product not found</h1>
         <p className="mt-2 text-slate-600">This product may have been removed or is unavailable.</p>
+        <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
+          Back to home
+        </Link>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <Seo title="Could not load product" description="Something went wrong while loading this product." />
+        <h1 className="text-xl font-semibold text-slate-900">Could not load product</h1>
+        <p className="mt-2 text-slate-600">Please try again in a moment.</p>
         <Link className="mt-6 inline-block text-blue-600 hover:underline" to="/">
           Back to home
         </Link>

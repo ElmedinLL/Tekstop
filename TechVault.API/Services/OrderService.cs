@@ -100,6 +100,9 @@ public sealed class OrderService(
         var isCard =
             string.Equals(dto.PaymentMethod.Trim(), "card", StringComparison.OrdinalIgnoreCase);
 
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -198,6 +201,7 @@ public sealed class OrderService(
             await tx.RollbackAsync(cancellationToken);
             throw;
         }
+        });
     }
 
     public async Task<OrderListResult> GetOrdersAsync(
@@ -263,6 +267,9 @@ public sealed class OrderService(
     {
         var domainUserId = await domainUserService.GetOrCreateDomainUserIdAsync(identityUserId, cancellationToken);
 
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -306,6 +313,7 @@ public sealed class OrderService(
             await tx.RollbackAsync(cancellationToken);
             throw;
         }
+        });
     }
 
     private async Task<OrderDto?> MapOrderDtoAsync(

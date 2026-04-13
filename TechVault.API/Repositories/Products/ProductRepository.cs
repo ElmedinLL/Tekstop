@@ -199,19 +199,22 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
 
         foreach (var pair in specFilters)
         {
-            var key = pair.Key;
+            var key = pair.Key.Trim();
             var expected = pair.Value.Trim();
-            if (string.IsNullOrEmpty(expected))
+            if (string.IsNullOrEmpty(expected) || string.IsNullOrEmpty(key))
             {
                 continue;
             }
 
-            // Loose JSON substring match (EF translates to SQL Server CHARINDEX/LIKE).
-            var quoted = $"\"{key}\":\"{expected}\"";
-            var colonThen = $"\"{key}\":{expected}";
+            // SpecsJson is nvarchar(max); SQL Server JSON_VALUE isn't exposed for plain strings in EF 8.
+            // Match common serialized shapes: "key":"value" and "key": "value".
+            var k = EscapeLikePattern(key);
+            var v = EscapeLikePattern(expected);
             query = query.Where(p =>
                 p.SpecsJson != null
-                && (p.SpecsJson.Contains(quoted) || p.SpecsJson.Contains(colonThen)));
+                && (
+                    EF.Functions.Like(p.SpecsJson, "%\"" + k + "\":\"" + v + "%")
+                    || EF.Functions.Like(p.SpecsJson, "%\"" + k + "\": \"" + v + "%")));
         }
 
         return query;
@@ -225,10 +228,14 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         }
 
         var term = searchTerm.Trim();
+        var pattern = "%" + EscapeLikePattern(term) + "%";
         return query.Where(p =>
-            EF.Functions.Like(p.Name, "%" + term + "%")
-            || (p.Description != null && EF.Functions.Like(p.Description, "%" + term + "%")));
+            EF.Functions.Like(p.Name, pattern)
+            || (p.Description != null && EF.Functions.Like(p.Description, pattern)));
     }
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 
     private static IQueryable<Product> ApplySort(IQueryable<Product> query, ProductSort sort) =>
         sort switch

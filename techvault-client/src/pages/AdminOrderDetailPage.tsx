@@ -8,6 +8,7 @@ import { toast } from '../lib/notifications'
 import { adminOrderDetailToTimelineSource } from '../lib/orderTimeline'
 import { fetchAdminOrder, updateAdminOrderStatus } from '../lib/adminOrders'
 
+/** Matches API OrderStatus (excluding PendingPayment — cannot be set by admin). */
 const ADMIN_STATUS_OPTIONS = [
   'Pending',
   'Confirmed',
@@ -18,6 +19,8 @@ const ADMIN_STATUS_OPTIONS = [
   'Cancelled',
   'Refunded',
 ] as const
+
+const QUICK_STATUS = ['Pending', 'Confirmed', 'Processing', 'Paid', 'Delivered', 'Cancelled', 'Refunded'] as const
 
 function formatUtc(iso: string) {
   const d = new Date(iso)
@@ -171,10 +174,53 @@ export function AdminOrderDetailPage() {
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Update status</h2>
-            <p className="mt-1 text-xs text-slate-600">Choose a new status and confirm. Shipped requires a tracking URL.</p>
+            <p className="mt-1 text-xs text-slate-600">
+              Payment-pending orders show as <strong>PendingPayment</strong> until Stripe confirms; you cannot set that
+              status manually. Use Confirmed, Processing, Paid, then Shipped (tracking URL), Delivered, or Cancelled /
+              Refunded.
+            </p>
+            {data.status === 'PendingPayment' && (
+              <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                This order is waiting for payment. After the customer pays, status moves to Confirmed (or complete payment
+                in Stripe) before you ship.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {QUICK_STATUS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={statusMutation.isPending || data.status === s}
+                  onClick={() => {
+                    setSelectedStatus(s)
+                    if (s === 'Cancelled' || s === 'Refunded') {
+                      if (!window.confirm(`Set this order to ${s}?`)) return
+                      statusMutation.mutate({ status: s })
+                      return
+                    }
+                    statusMutation.mutate({ status: s })
+                  }}
+                  className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {s}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={statusMutation.isPending || data.status === 'Shipped'}
+                onClick={() => {
+                  setSelectedStatus('Shipped')
+                  setTrackingUrlDraft(data.trackingUrl?.trim() ?? '')
+                  setStatusModalOpen(true)
+                }}
+                className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Shipped…
+              </button>
+            </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block min-w-[12rem] flex-1">
-                <span className="text-xs font-medium text-slate-700">Status</span>
+                <span className="text-xs font-medium text-slate-700">Or pick from list</span>
                 <select
                   value={effectiveSelected}
                   onChange={(e) => setSelectedStatus(e.target.value)}

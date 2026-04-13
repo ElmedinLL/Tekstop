@@ -4,7 +4,7 @@ namespace TechVault.API.Data;
 
 /// <summary>
 /// Loads the same connection string as runtime (<c>appsettings.json</c> + optional Development + env)
-/// so <c>dotnet ef</c> does not use a hard-coded empty password.
+/// so <c>dotnet ef</c> loads the same settings as runtime (SQL Server connection string in <c>appsettings.json</c>).
 /// </summary>
 internal static class DesignTimeConnectionString
 {

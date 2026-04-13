@@ -7,6 +7,9 @@ public sealed class RefreshTokenDtoValidator : AbstractValidator<RefreshTokenDto
 {
     public RefreshTokenDtoValidator()
     {
-        RuleFor(x => x.RefreshToken).NotEmpty().MinimumLength(32).MaximumLength(512);
+        When(x => !string.IsNullOrWhiteSpace(x.RefreshToken), () =>
+        {
+            RuleFor(x => x.RefreshToken!).MinimumLength(32).MaximumLength(512);
+        });
     }
 }

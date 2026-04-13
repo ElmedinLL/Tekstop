@@ -9,10 +9,6 @@ public sealed class AdminStatsService(
     ApplicationDbContext db,
     AuthDbContext authDb) : IAdminStatsService
 {
-    /// <summary>Orders that represent realized or in-flight sales (not abandoned checkout, not voided).</summary>
-    private static bool CountsTowardRevenue(OrderStatus status) =>
-        status is not OrderStatus.Cancelled and not OrderStatus.Refunded and not OrderStatus.PendingPayment;
-
     public async Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default)
     {
         var totalUsers = await authDb.Users.CountAsync(cancellationToken);
@@ -21,7 +17,10 @@ public sealed class AdminStatsService(
 
         var totalRevenue = await db.Orders
             .AsNoTracking()
-            .Where(o => CountsTowardRevenue(o.Status))
+            .Where(o =>
+                o.Status != OrderStatus.Cancelled
+                && o.Status != OrderStatus.Refunded
+                && o.Status != OrderStatus.PendingPayment)
             .SumAsync(o => o.Total, cancellationToken);
 
         var revenueByMonth = await BuildRevenueByMonthAsync(cancellationToken);
@@ -47,7 +46,12 @@ public sealed class AdminStatsService(
 
         var aggregates = await db.Orders
             .AsNoTracking()
-            .Where(o => o.PlacedAtUtc >= fromInclusive && o.PlacedAtUtc < toExclusive && CountsTowardRevenue(o.Status))
+            .Where(o =>
+                o.PlacedAtUtc >= fromInclusive
+                && o.PlacedAtUtc < toExclusive
+                && o.Status != OrderStatus.Cancelled
+                && o.Status != OrderStatus.Refunded
+                && o.Status != OrderStatus.PendingPayment)
             .GroupBy(o => new { o.PlacedAtUtc.Year, o.PlacedAtUtc.Month })
             .Select(g => new { g.Key.Year, g.Key.Month, Revenue = g.Sum(x => x.Total) })
             .ToListAsync(cancellationToken);

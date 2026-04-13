@@ -1,3 +1,6 @@
+-- OBSOLETE: TechVault.API uses Microsoft SQL Server and EF migrations; do not run this MySQL script.
+-- (Kept for historical reference only.)
+--
 -- Products table was never migrated past InitialCreate; code expects soft-delete + JSON + review stats.
 -- Run once against TechVaultDB.
 

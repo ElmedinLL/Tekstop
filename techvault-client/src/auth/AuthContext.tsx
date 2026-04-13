@@ -13,6 +13,29 @@ import { api, setupAuthInterceptors } from '../lib/api'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
+/** Fallback when HttpOnly cookie is not sent (e.g. direct cross-origin API URL). Server also sets `TechVault_rt` cookie. */
+const REFRESH_TOKEN_STORAGE_KEY = 'techvault.refreshToken'
+
+function readStoredRefreshToken(): string | null {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredRefreshToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token)
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+    }
+  } catch {
+    // private mode / quota
+  }
+}
+
 const authClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
@@ -86,6 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     accessTokenRef.current = null
     setUser(null)
     refreshTokenRef.current = null
+    writeStoredRefreshToken(null)
   }, [])
 
   const fetchMe = useCallback(async () => {
@@ -99,19 +123,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return refreshPromiseRef.current
     }
 
+    /** 401 is normal when not logged in; do not reject or axios surfaces console noise. */
+    const validateRefreshStatus = (status: number) => status === 200 || status === 401
+
+    const applyTokens = (data: AuthResponseDto) => {
+      refreshTokenRef.current = data.refreshToken
+      writeStoredRefreshToken(data.refreshToken)
+      accessTokenRef.current = data.accessToken
+      setAccessToken(data.accessToken)
+      return data.accessToken
+    }
+
     refreshPromiseRef.current = (async () => {
       try {
-        const rt = refreshTokenRef.current
+        // Prefer HttpOnly cookie (sent with withCredentials); body optional.
+        const r1 = await authClient.post<AuthResponseDto>('/auth/refresh', {}, { validateStatus: validateRefreshStatus })
+        if (r1.status === 200) {
+          return applyTokens(r1.data)
+        }
+
+        const rt = refreshTokenRef.current ?? readStoredRefreshToken()
         if (!rt) {
           return null
         }
-        const response = await authClient.post<AuthResponseDto>('/auth/refresh', {
-          refreshToken: rt,
-        })
-        refreshTokenRef.current = response.data.refreshToken
-        accessTokenRef.current = response.data.accessToken
-        setAccessToken(response.data.accessToken)
-        return response.data.accessToken
+
+        const r2 = await authClient.post<AuthResponseDto>(
+          '/auth/refresh',
+          { refreshToken: rt },
+          { validateStatus: validateRefreshStatus },
+        )
+        if (r2.status === 200) {
+          return applyTokens(r2.data)
+        }
+
+        clearSession()
+        return null
       } catch {
         clearSession()
         return null
@@ -126,6 +172,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const establishSession = useCallback(
     async (tokens: { accessToken: string; refreshToken: string }) => {
       refreshTokenRef.current = tokens.refreshToken
+      writeStoredRefreshToken(tokens.refreshToken)
       accessTokenRef.current = tokens.accessToken
       setAccessToken(tokens.accessToken)
       await fetchMe()
@@ -165,10 +212,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(async () => {
     try {
-      const rt = refreshTokenRef.current
-      if (rt) {
-        await api.post('/auth/logout', { refreshToken: rt })
-      }
+      const rt = refreshTokenRef.current ?? readStoredRefreshToken()
+      await api.post('/auth/logout', rt ? { refreshToken: rt } : {})
     } finally {
       clearSession()
     }
@@ -185,8 +230,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let isMounted = true
 
+    const storedRt = readStoredRefreshToken()
+    if (storedRt) {
+      refreshTokenRef.current = storedRt
+    }
+
     ;(async () => {
       try {
+        const hasRt = refreshTokenRef.current ?? readStoredRefreshToken()
+        // Skip POST /auth/refresh when clearly anonymous (needs GET /auth/session on the API).
+        try {
+          const res = await authClient.get<{ hasRefreshCookie: boolean }>('/auth/session', {
+            validateStatus: (s) => s === 200 || s === 404,
+          })
+          if (res.status === 200 && !res.data.hasRefreshCookie && !hasRt) {
+            return
+          }
+        } catch {
+          // Old server or transient error: fall through to refresh()
+        }
+
         const token = await refresh()
         if (!token || !isMounted) {
           return
