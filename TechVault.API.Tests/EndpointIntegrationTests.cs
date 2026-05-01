@@ -6,7 +6,7 @@ using Xunit;
 
 namespace TechVault.API.Tests;
 
-/// <summary>HTTP integration tests against the real pipeline, EF contexts, and SQL Server LocalDB (<see cref="ApiWebApplicationFactory.IntegrationConnectionString"/>).</summary>
+/// <summary>HTTP integration tests against the real pipeline, EF contexts, and SQL Server (Docker via <see cref="ApiWebApplicationFactory"/>).</summary>
 [Collection("ApiIntegration")]
 public sealed class EndpointIntegrationTests
 {
