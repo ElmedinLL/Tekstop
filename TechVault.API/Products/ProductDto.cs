@@ -19,4 +19,6 @@ public sealed class ProductDto
     public ProductCategoryDto Category { get; set; } = null!;
     public IReadOnlyDictionary<string, string> Specs { get; set; } =
         new Dictionary<string, string>();
+
+    public DateTime CreatedAtUtc { get; set; }
 }

@@ -5,6 +5,7 @@ import { OrderStatusBadge } from '../components/OrderStatusBadge'
 import { OrderTrackingTimeline } from '../components/OrderTrackingTimeline'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { Seo } from '../components/Seo'
+import { SITE_NAME } from '../lib/siteMeta'
 import { cancelOrder, fetchOrder } from '../lib/orders'
 import type { OrderDto } from '../types/order'
 
@@ -90,6 +91,9 @@ export function OrderDetailPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="print-brand-header" aria-hidden="true">
+        {SITE_NAME}
+      </div>
       <Seo
         title={orderTitle}
         description="View order status, items, and shipping details on TechVault."

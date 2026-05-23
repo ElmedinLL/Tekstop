@@ -1,3 +1,190 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* P230: Prefer WCAG-AA-friendly pairings — dark slate-900 on amber-50 in banners already tuned in components. */
+
+/* -------- P224: Global focus-visible (brand ring) ---------- */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: none;
+}
+
+/* P220: Smooth theme transitions for color-related properties */
+:root {
+  transition: background-color 0.35s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+:focus-visible:not(.dark-mode-toggle-fix) {
+  @apply rounded-sm ring-2 ring-blue-600 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+}
+
+.dark :focus-visible {
+  @apply ring-offset-slate-950;
+}
+
+body {
+  transition: background-color 0.3s ease, color 0.25s ease;
+}
+
+/* -------- P222: Route / page transitions ---------- */
+.route-transition-enter {
+  animation: route-enter 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition-enter,
+  .timeline-stagger,
+  .form-input-error-shake {
+    animation: none !important;
+  }
+}
+
+/* -------- P217: Timeline stagger ---------- */
+.fade-up-item {
+  opacity: 0;
+  animation: fade-up-soft 460ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.timeline-stagger {
+  animation-fill-mode: forwards;
+}
+
+@keyframes fade-up-soft {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------- P223: Form error visuals ---------- */
+.form-input-error-shake {
+  animation: shake-err 440ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.form-input-invalid {
+  @apply border-rose-500 ring-rose-400/40 !important;
+}
+
+.form-error-msg {
+  @apply mt-1 flex items-start gap-1.5 text-sm text-rose-700 dark:text-rose-300;
+}
+
+@keyframes shake-err {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* -------- P219: Responsive stacked tables ---------- */
+@media (max-width: 767px) {
+  .techvault-table-wrapper table {
+    @apply border-0;
+  }
+
+  .techvault-table-wrapper thead {
+    display: none;
+  }
+
+  .techvault-table-wrapper tbody tr {
+    @apply mb-4 block rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950;
+  }
+
+  .techvault-table-wrapper tbody td {
+    @apply flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 text-sm dark:border-slate-800;
+  }
+
+  .techvault-table-wrapper tbody td:last-child {
+    border-bottom-width: 0;
+  }
+
+  .techvault-table-wrapper tbody td::before {
+    content: attr(data-label);
+    @apply shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  }
+
+  /* When cell has no label (actions row), behave as single block */
+  .techvault-table-wrapper tbody td[data-label='']:not(:only-child)::before {
+    content: none;
+  }
+
+  /* Leading row-attribute column (`<th scope="row">`) in stacked compare tables */
+  .techvault-table-wrapper tbody th[scope='row'] {
+    @apply flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400;
+  }
+
+  .techvault-table-wrapper tbody th[scope='row']:last-child {
+    border-bottom-width: 0;
+  }
+}
+
+/* Hide print masthead on screen — shown via `@media print` */
+.print-brand-header {
+  display: none !important;
+}
+
+/* -------- P225: Print ---------- */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-brand-header {
+    display: block !important;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .techvault-table-wrapper table thead {
+    display: table-header-group !important;
+  }
+
+  .techvault-table-wrapper table tr {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    font-size: 0.85em;
+    color: #444;
+  }
+}

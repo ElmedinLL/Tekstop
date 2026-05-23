@@ -1,6 +1,8 @@
 import { useQueries } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { ResponsiveImage } from '../components/ResponsiveImage'
 import { Seo } from '../components/Seo'
+import { TableWrapper } from '../components/TableWrapper'
 import { fetchProductDetail } from '../hooks/useProduct'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { COMPARE_MAX, useCompareStore } from '../store/useCompareStore'
@@ -33,6 +35,11 @@ const baseRows: { label: string; get: (p: ProductDetail) => string }[] = [
   { label: 'Stock', get: (p) => (p.stock > 0 ? `${p.stock} in stock` : 'Out of stock') },
   { label: 'SKU', get: (p) => p.sku },
 ]
+
+function compareHeading(p: ProductDetail | null | undefined, fallbackId: number): string {
+  const n = p?.name?.trim()
+  return n || `Product ${fallbackId}`
+}
 
 export function ComparePage() {
   const ids = useCompareStore((s) => s.ids)
@@ -102,7 +109,7 @@ export function ComparePage() {
       )}
 
       {ids.length > 0 && (
-        <div className="mt-8 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <TableWrapper className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
           {loading && (
             <p className="p-6 text-center text-sm text-slate-500" role="status">
               Loading product details…
@@ -116,10 +123,10 @@ export function ComparePage() {
           {!loading && (
             <table className="min-w-[720px] w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/80">
                   <th
                     scope="col"
-                    className="sticky left-0 z-10 w-36 min-w-[9rem] border-r border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                    className="sticky left-0 z-10 w-36 min-w-[9rem] border-r border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-950"
                   >
                     Product
                   </th>
@@ -158,9 +165,12 @@ export function ComparePage() {
                           <div className="flex max-w-[200px] flex-col gap-3">
                             <div className="aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
                               {p.images[0] ? (
-                                <img
+                                <ResponsiveImage
                                   src={resolveApiAssetUrl(p.images[0])}
                                   alt=""
+                                  width={400}
+                                  height={400}
+                                  sizes="(max-width:640px) 45vw, 200px"
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
@@ -194,12 +204,16 @@ export function ComparePage() {
                   <tr key={row.label}>
                     <th
                       scope="row"
-                      className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-950"
                     >
                       {row.label}
                     </th>
                     {columns.map(({ id, result }) => (
-                      <td key={id} className="px-4 py-3 text-slate-800">
+                      <td
+                        key={id}
+                        data-label={`${row.label}: ${compareHeading(result.data ?? null, id)}`}
+                        className="px-4 py-3 text-slate-800 dark:text-slate-100"
+                      >
                         {result.data ? row.get(result.data) : '—'}
                       </td>
                     ))}
@@ -209,7 +223,7 @@ export function ComparePage() {
                   <tr key={key}>
                     <th
                       scope="row"
-                      className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-950"
                     >
                       {key}
                     </th>
@@ -217,7 +231,11 @@ export function ComparePage() {
                       const p = result.data
                       const v = p?.specs[key]?.trim()
                       return (
-                        <td key={id} className="px-4 py-3 text-slate-800">
+                        <td
+                          key={id}
+                          data-label={`${key}: ${compareHeading(p ?? null, id)}`}
+                          className="px-4 py-3 text-slate-800 dark:text-slate-100"
+                        >
                           {v ? v : '—'}
                         </td>
                       )
@@ -227,7 +245,7 @@ export function ComparePage() {
               </tbody>
             </table>
           )}
-        </div>
+        </TableWrapper>
       )}
     </div>
   )

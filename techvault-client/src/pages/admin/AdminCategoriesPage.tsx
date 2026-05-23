@@ -10,6 +10,7 @@ import {
 } from '../../lib/categories'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
 import { Seo } from '../../components/Seo'
+import { TableWrapper } from '../../components/TableWrapper'
 import { resolveApiAssetUrl } from '../../lib/assetUrl'
 import type { CategoryListItem } from '../../types/category'
 
@@ -237,7 +238,7 @@ export function AdminCategoriesPage() {
         )}
 
         {listQuery.data && listQuery.data.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableWrapper>
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -264,13 +265,19 @@ export function AdminCategoriesPage() {
               <tbody className="divide-y divide-slate-100">
                 {listQuery.data.map((row) => (
                   <tr key={row.id} className="bg-white hover:bg-slate-50/80">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" data-label="Image">
                       <CategoryThumb url={row.imageUrl} />
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.slug}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-900">{row.productCount}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 font-medium text-slate-900" data-label="Name">
+                      {row.name}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600" data-label="Slug">
+                      {row.slug}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-900" data-label="Products">
+                      {row.productCount}
+                    </td>
+                    <td className="px-4 py-3" data-label="Status">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           row.isActive ? 'bg-emerald-500/10 text-emerald-800' : 'bg-slate-200 text-slate-700'
@@ -279,7 +286,7 @@ export function AdminCategoriesPage() {
                         {row.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right" data-label="Actions">
                       <div className="flex flex-wrap justify-end gap-2">
                         <button
                           type="button"
@@ -301,7 +308,7 @@ export function AdminCategoriesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrapper>
         )}
       </div>
 

@@ -43,4 +43,6 @@ export type ProductDetail = {
   images: string[]
   category: ProductCategoryDto
   specs: Record<string, string>
+  /** ISO-8601 from API (`createdAtUtc`) for SEO/schema. */
+  createdAtUtc?: string | null
 }

@@ -65,10 +65,10 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
                 outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
             .WriteTo.File(
                 Path.Combine(context.HostingEnvironment.ContentRootPath, "Logs", "techvault-.log"),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14,
+                outputTemplate: "{Timestamp:o} [{Level:u3}] {SourceContext} {Message:lj} {Properties:j}{NewLine}{Exception}",
                 shared: true,
-                outputTemplate: "{Timestamp:o} [{Level:u3}] {SourceContext} {Message:lj} {Properties:j}{NewLine}{Exception}");
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14);
     }
 
     loggerConfiguration
@@ -520,7 +520,7 @@ app.UseSerilogRequestLogging(options =>
             "ContentLength",
             httpContext.Request.ContentLength is { } len ? len : (long?)null);
     };
-    options.GetLevel = (httpContext, elapsed, ex) =>
+    options.GetLevel = (httpContext, _, ex) =>
     {
         var path = httpContext.Request.Path;
         if (path.StartsWithSegments("/images") || path.StartsWithSegments("/swagger"))
@@ -540,7 +540,8 @@ app.UseSerilogRequestLogging(options =>
 
         // Unauthenticated refresh on startup is normal (no cookie / no stored refresh token).
         if (httpContext.Response.StatusCode == 401
-            && path.Value?.Contains("/auth/refresh", StringComparison.OrdinalIgnoreCase) == true)
+            && path.Value is { } p
+            && p.Contains("/auth/refresh", StringComparison.OrdinalIgnoreCase))
         {
             return LogEventLevel.Information;
         }

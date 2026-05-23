@@ -6,6 +6,8 @@ import { ProductGrid } from '../components/ProductGrid'
 import { Seo } from '../components/Seo'
 import { fetchProductDetail } from '../hooks/useProduct'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
+import { organizationJsonLd } from '../lib/jsonLd'
+import { getSiteOrigin, SITE_NAME } from '../lib/siteMeta'
 import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore'
 import type { CategoryListItem } from '../types/category'
 import type { PagedProductsResponse, ProductListItem } from '../types/product'
@@ -90,11 +92,17 @@ export function HomePage() {
   const bestSellersItems = bestSellersPage?.items ?? []
   const newArrivalsItems = newArrivalsPage?.items ?? []
 
+  const origin = getSiteOrigin()
+  const canonicalHome = origin ? `${origin}/` : undefined
+  const orgJson = origin ? organizationJsonLd(SITE_NAME, `${origin}/`) : null
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <Seo
         title="Home"
         description="Shop featured tech, best sellers, and new arrivals. Browse categories and find your next upgrade on TechVault."
+        canonicalHref={canonicalHome}
+        jsonLdScripts={orgJson ? [orgJson] : []}
       />
       {/* Hero */}
       <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-600 via-sky-600 to-slate-900 p-0 text-white shadow-sm">

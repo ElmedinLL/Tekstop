@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { useAddCartItemMutation } from '../hooks/useCart'
 import { flyToCart } from '../lib/flyToCart'
+import { ResponsiveImage } from './ResponsiveImage'
 import {
   notifyCartAdded,
   notifyCartError,
@@ -305,13 +306,16 @@ export function ProductCard({
   const imageBlock = (
     <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl bg-slate-100">
       {imageUrl && !imgFailed ? (
-        <img
-          src={imageUrl}
-          alt=""
-          className={`h-full w-full object-cover transition ${!inStock ? 'opacity-60 grayscale' : ''}`}
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
+                        <ResponsiveImage
+                          src={imageUrl}
+                          alt=""
+                          width={640}
+                          height={480}
+                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 400px"
+                          className={`h-full w-full object-cover transition ${!inStock ? 'opacity-60 grayscale' : ''}`}
+                          onError={() => setImgFailed(true)}
+                        />
+                      ) : (
         <div
           className={`flex h-full w-full items-center justify-center text-sm text-slate-400 ${!inStock ? 'opacity-70' : ''}`}
           aria-hidden

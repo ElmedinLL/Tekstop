@@ -10,8 +10,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { TimelineComponent } from '../../components/admin/TimelineComponent'
 import { Seo } from '../../components/Seo'
 import { OrderStatusBadge } from '../../components/OrderStatusBadge'
+import { TableWrapper } from '../../components/TableWrapper'
 import { fetchAdminLowStockProducts, fetchAdminOrders, fetchAdminStats } from '../../lib/admin'
 
 function formatCurrency(amount: number, currency = 'USD') {
@@ -67,6 +69,16 @@ export function AdminDashboardPage() {
     }))
   }, [statsQuery.data?.revenueByMonth])
 
+  const timelineItems = useMemo(() => {
+    const orders = ordersQuery.data?.items ?? []
+    return orders.map((o) => ({
+      id: `order-${o.id}`,
+      title: `Order ${o.orderNumber}`,
+      description: `${o.customerEmail ?? 'Guest checkout'} · ${formatCurrency(o.total, o.currency)} (${o.status.replace(/-/g, ' ')})`,
+      timestampIso: o.placedAtUtc,
+    }))
+  }, [ordersQuery.data?.items])
+
   return (
     <div className="space-y-8">
       <Seo
@@ -77,6 +89,25 @@ export function AdminDashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-600">Overview of revenue, orders, and inventory.</p>
       </div>
+
+      <section
+        aria-labelledby="activity-feed-heading"
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <h2 id="activity-feed-heading" className="text-sm font-semibold text-slate-900">
+          Recent activity
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-500">Latest orders surfaced as a timeline (stagger animation).</p>
+        <div className="mt-6 max-w-xl">
+          {ordersQuery.isPending ? (
+            <div className="h-48 animate-pulse rounded-lg bg-slate-100" />
+          ) : ordersQuery.isError ? (
+            <p className="text-sm text-rose-600">Timeline unavailable.</p>
+          ) : (
+            <TimelineComponent items={timelineItems} />
+          )}
+        </div>
+      </section>
 
       <section aria-label="Summary statistics">
         {statsQuery.isPending && (
@@ -177,7 +208,7 @@ export function AdminDashboardPage() {
             <p className="p-5 text-sm text-slate-600">No orders yet.</p>
           )}
           {ordersQuery.data && ordersQuery.data.items.length > 0 && (
-            <div className="overflow-x-auto">
+            <TableWrapper className="rounded-xl border-x border-b border-slate-100">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -190,24 +221,28 @@ export function AdminDashboardPage() {
                 <tbody className="divide-y divide-slate-100">
                   {ordersQuery.data.items.map((o) => (
                     <tr key={o.id} className="text-slate-800">
-                      <td className="whitespace-nowrap px-5 py-3">
+                      <td className="whitespace-nowrap px-5 py-3" data-label="Order">
                         <span className="font-medium text-slate-900">{o.orderNumber}</span>
                         <p className="text-xs text-slate-500">{formatDateTime(o.placedAtUtc)}</p>
                       </td>
-                      <td className="max-w-[140px] truncate px-3 py-3 text-slate-600" title={o.customerEmail ?? ''}>
+                      <td
+                        className="max-w-[140px] truncate px-3 py-3 text-slate-600"
+                        data-label="Customer"
+                        title={o.customerEmail ?? ''}
+                      >
                         {o.customerEmail ?? '—'}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3" data-label="Status">
                         <OrderStatusBadge status={o.status} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right font-medium tabular-nums">
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-medium tabular-nums" data-label="Total">
                         {formatCurrency(o.total, o.currency)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrapper>
           )}
         </section>
 

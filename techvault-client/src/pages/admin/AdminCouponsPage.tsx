@@ -8,6 +8,7 @@ import {
   updateAdminCoupon,
 } from '../../lib/adminCoupons'
 import { Seo } from '../../components/Seo'
+import { TableWrapper } from '../../components/TableWrapper'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
 import type { AdminCoupon, AdminDiscountType, CreateAdminCouponBody } from '../../types/adminCoupon'
 
@@ -287,7 +288,7 @@ export function AdminCouponsPage() {
           <p className="p-6 text-sm text-slate-600">No coupons yet.</p>
         )}
         {listQuery.data && listQuery.data.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableWrapper>
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -308,16 +309,26 @@ export function AdminCouponsPage() {
               <tbody className="divide-y divide-slate-100">
                 {listQuery.data.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/80">
-                    <td className="px-4 py-3 font-mono font-medium text-slate-900">{row.code}</td>
-                    <td className="px-4 py-3 text-slate-700">{formatType(row.discountType)}</td>
-                    <td className="px-4 py-3 text-slate-900">{formatValue(row)}</td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">{formatMoney(row.minOrderValue)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatExpiry(row.expiresAtUtc)}</td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
+                    <td className="px-4 py-3 font-mono font-medium text-slate-900" data-label="Code">
+                      {row.code}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700" data-label="Type">
+                      {formatType(row.discountType)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-900" data-label="Value">
+                      {formatValue(row)}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-slate-700" data-label="Min order">
+                      {formatMoney(row.minOrderValue)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-700" data-label="Expires">
+                      {formatExpiry(row.expiresAtUtc)}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-slate-700" data-label="Usage">
                       {row.usageCount}
                       {row.usageLimit != null ? ` / ${row.usageLimit}` : ' / ∞'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" data-label="Status">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           row.isActive ? 'bg-emerald-500/10 text-emerald-800' : 'bg-slate-200 text-slate-700'
@@ -326,7 +337,7 @@ export function AdminCouponsPage() {
                         {row.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right" data-label="Actions">
                       <button
                         type="button"
                         onClick={() => openEdit(row)}
@@ -349,7 +360,7 @@ export function AdminCouponsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrapper>
         )}
       </div>
 

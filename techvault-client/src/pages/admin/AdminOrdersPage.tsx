@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Seo } from '../../components/Seo'
+import { TableWrapper } from '../../components/TableWrapper'
 import { Pagination } from '../../components/Pagination'
 import { fetchAdminOrders } from '../../lib/adminOrders'
 
@@ -146,7 +147,7 @@ export function AdminOrdersPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <TableWrapper className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
@@ -182,26 +183,31 @@ export function AdminOrdersPage() {
             )}
             {data?.items.map((row) => (
               <tr key={row.id} className="hover:bg-slate-50/80">
-                <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900" data-label="Order">
                   #{row.id}
                   <span className="ml-2 font-normal text-slate-500">{row.orderNumber}</span>
                 </td>
-                <td className="max-w-[14rem] px-4 py-3">
+                <td className="max-w-[14rem] px-4 py-3" data-label="Customer">
                   <div className="truncate font-medium text-slate-900">{row.customerName}</div>
                   <div className="truncate text-xs text-slate-500">{row.customerEmail || '—'}</div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatUtc(row.placedAtUtc)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 text-slate-700" data-label="Date">
+                  {formatUtc(row.placedAtUtc)}
+                </td>
+                <td
+                  className="whitespace-nowrap px-4 py-3 text-right font-medium text-slate-900"
+                  data-label="Total"
+                >
                   {formatMoney(row.total, row.currency)}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" data-label="Status">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(row.status)}`}
                   >
                     {row.status}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">
+                <td className="whitespace-nowrap px-4 py-3 text-right" data-label="">
                   <Link
                     to={`/admin/orders/${row.id}`}
                     className="inline-flex rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
@@ -213,7 +219,7 @@ export function AdminOrdersPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrapper>
 
       {data && data.totalCount > 0 && (
         <p className="text-center text-xs text-slate-500">

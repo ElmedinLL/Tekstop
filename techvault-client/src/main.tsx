@@ -11,6 +11,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { AppToaster } from './components/AppToaster'
 import { AppErrorBoundaryFallback } from './components/AppErrorBoundaryFallback'
 import { createQueryClient } from './lib/queryClient'
+import { AppThemeProvider } from './providers/AppThemeProvider'
 
 const queryClient = createQueryClient()
 
@@ -19,21 +20,23 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <QueryErrorResetBoundary>
         {({ reset }) => (
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
-            <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
-              <AuthProvider>
-                <HelmetProvider>
-                  <App />
-                  <AppToaster />
-                </HelmetProvider>
-              </AuthProvider>
-            </ErrorBoundary>
-          </BrowserRouter>
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
+                <AppThemeProvider>
+                  <ErrorBoundary FallbackComponent={AppErrorBoundaryFallback} onReset={reset}>
+                    <AuthProvider>
+                      <HelmetProvider>
+                        <App />
+                        <AppToaster />
+                      </HelmetProvider>
+                    </AuthProvider>
+                  </ErrorBoundary>
+                </AppThemeProvider>
+              </BrowserRouter>
         )}
       </QueryErrorResetBoundary>
     </QueryClientProvider>

@@ -10,7 +10,8 @@ import { flyToCart } from '../lib/flyToCart'
 import { useProductReviewStatus } from '../hooks/useProductReviewStatus'
 import { useAddCartItemMutation } from '../hooks/useCart'
 import { Seo } from '../components/Seo'
-import { getSiteOrigin, productDescriptionForMeta } from '../lib/siteMeta'
+import { productListingJsonLdForCourseParity } from '../lib/jsonLd'
+import { getSiteOrigin, productDescriptionForMeta, SITE_NAME } from '../lib/siteMeta'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { useProduct } from '../hooks/useProduct'
 import { toast } from '../lib/notifications'
@@ -153,16 +154,36 @@ export function ProductDetailPage() {
     }
   }
 
-  const pageUrl = `${getSiteOrigin()}/products/${product.id}`
+  const origin = getSiteOrigin()
+  const pageUrl = `${origin}/products/${product.id}`
   const metaDesc = productDescriptionForMeta(product)
   const ogImage =
     product.images.length > 0 ? resolveApiAssetUrl(product.images[0]) : undefined
+  const canonicalHref = origin ? pageUrl : undefined
+  const productJsonLd = origin
+    ? productListingJsonLdForCourseParity({
+        name: product.name,
+        description: metaDesc,
+        url: pageUrl,
+        dateCreated: product.createdAtUtc ?? undefined,
+        brand: {
+          '@type': 'Organization',
+          name: SITE_NAME,
+          url: `${origin}/`,
+        },
+      })
+    : null
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="print-brand-header" aria-hidden="true">
+        {SITE_NAME}
+      </div>
       <Seo
         title={product.name}
         description={metaDesc}
+        canonicalHref={canonicalHref}
+        jsonLdScripts={productJsonLd ? [productJsonLd] : []}
         productOpenGraph={{
           title: product.name,
           description: metaDesc,

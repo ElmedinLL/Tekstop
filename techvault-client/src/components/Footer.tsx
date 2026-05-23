@@ -123,7 +123,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="border-t border-slate-800 bg-slate-900 text-slate-300">
+    <footer className="no-print border-t border-slate-800 bg-slate-900 text-slate-300">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:py-14">
         <div className="flex flex-col gap-12 lg:flex-row lg:gap-10">
           <div className="grid flex-1 grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">

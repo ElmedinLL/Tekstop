@@ -5,6 +5,7 @@ import { isAxiosError } from 'axios'
 import { useAuth } from '../../auth/AuthContext'
 import { Pagination } from '../../components/Pagination'
 import { Seo } from '../../components/Seo'
+import { TableWrapper } from '../../components/TableWrapper'
 import { fetchAdminUsers, setAdminUserBanned } from '../../lib/adminUsers'
 import { resolveApiAssetUrl } from '../../lib/assetUrl'
 import { messageFromUnknownError, toast } from '../../lib/notifications'
@@ -239,7 +240,7 @@ export function AdminUsersPage() {
         )}
 
         {listQuery.data && listQuery.data.items.length > 0 && (
-          <div className="overflow-x-auto">
+          <TableWrapper>
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -269,14 +270,16 @@ export function AdminUsersPage() {
                   const busy = banMutation.isPending && banMutation.variables?.userId === row.userId
                   return (
                     <tr key={row.userId} className="bg-white hover:bg-slate-50/80">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" data-label="User">
                         <div className="flex items-center gap-3">
                           <UserAvatar user={row} />
                           <span className="font-medium text-slate-900">{userDisplayName(row)}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{row.email}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-700" data-label="Email">
+                        {row.email}
+                      </td>
+                      <td className="px-4 py-3" data-label="Role">
                         <div className="flex flex-wrap gap-1">
                           {row.roles.length === 0 ? (
                             <span className="text-slate-400">—</span>
@@ -292,9 +295,13 @@ export function AdminUsersPage() {
                           )}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatJoined(row.joinedAtUtc)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-900">{row.orderCount}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700" data-label="Joined">
+                        {formatJoined(row.joinedAtUtc)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-900" data-label="Orders">
+                        {row.orderCount}
+                      </td>
+                      <td className="px-4 py-3 text-right" data-label="Ban">
                         <div className="inline-flex items-center justify-end gap-2">
                           <BanToggle
                             row={row}
@@ -312,7 +319,7 @@ export function AdminUsersPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableWrapper>
         )}
 
         {listQuery.data && listQuery.data.items.length > 0 && (

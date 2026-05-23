@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Seo } from '../../components/Seo'
 import { Pagination } from '../../components/Pagination'
+import { TableWrapper } from '../../components/TableWrapper'
 import { fetchAdminProducts } from '../../lib/admin'
 import { deleteProduct } from '../../lib/adminProduct'
 import { toast } from '../../lib/notifications'
@@ -261,7 +262,7 @@ export function AdminProductsPage() {
 
         {listQuery.data && listQuery.data.items.length > 0 && (
           <>
-            <div className="overflow-x-auto">
+            <TableWrapper>
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -302,7 +303,7 @@ export function AdminProductsPage() {
                     const img = p.imageUrl ? resolveApiAssetUrl(p.imageUrl) : ''
                     return (
                       <tr key={p.id} className="text-slate-800">
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" data-label="Image">
                           <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-100 bg-slate-100">
                             {img ? (
                               <img src={img} alt="" className="h-full w-full object-cover" />
@@ -313,7 +314,7 @@ export function AdminProductsPage() {
                             )}
                           </div>
                         </td>
-                        <td className="max-w-[200px] px-4 py-3">
+                        <td className="max-w-[200px] px-4 py-3" data-label="Name">
                           <p className="truncate font-medium text-slate-900" title={p.name}>
                             {p.name}
                           </p>
@@ -323,12 +324,20 @@ export function AdminProductsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums">{formatPrice(p.price)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums">{p.stockQuantity}</td>
-                        <td className="max-w-[140px] truncate px-4 py-3 text-slate-600" title={p.categoryName}>
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums" data-label="Price">
+                          {formatPrice(p.price)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums" data-label="Stock">
+                          {p.stockQuantity}
+                        </td>
+                        <td
+                          className="max-w-[140px] truncate px-4 py-3 text-slate-600"
+                          title={p.categoryName}
+                          data-label="Category"
+                        >
                           {p.categoryName}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <td className="whitespace-nowrap px-4 py-3 text-right" data-label="Actions">
                           <div className="flex flex-wrap items-center justify-end gap-3">
                             {p.isPublished ? (
                               <Link
@@ -367,7 +376,7 @@ export function AdminProductsPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableWrapper>
 
             <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">

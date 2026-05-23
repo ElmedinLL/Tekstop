@@ -1,5 +1,10 @@
 import { lazy, Suspense } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { AnnouncementBanner } from './components/AnnouncementBanner'
+import { AccessibilityLiveRegions } from './components/AccessibilityLiveRegions'
+import { CommandPalette } from './components/CommandPalette'
+import { SkipLink } from './components/SkipLink'
+import { defaultSiteAnnouncements } from './lib/siteAnnouncements'
 import { AdminRoute } from './auth/AdminRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CartAuthBridge } from './components/CartAuthBridge'
@@ -76,15 +81,23 @@ export default function App() {
   const setCartDrawerOpen = useCartStore((s) => s.setCartDrawerOpen)
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
+      <AccessibilityLiveRegions />
+      <SkipLink />
       <CartAuthBridge />
       {!isAdminShell && (
         <>
+          <AnnouncementBanner announcements={defaultSiteAnnouncements} />
           <Navbar onOpenCart={() => setCartDrawerOpen(true)} />
           <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
         </>
       )}
-      <main className={isAdminShell ? 'min-h-screen' : undefined}>
+      {isAdminShell && <CommandPalette />}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`outline-none ${isAdminShell ? 'min-h-screen' : ''} route-transition-enter`}
+      >
         <Suspense fallback={<RoutePageSpinner />}>
           <Routes>
             <Route path="/" element={<HomePage />} />

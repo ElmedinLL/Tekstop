@@ -16,13 +16,13 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         PageRequest page,
         CancellationToken cancellationToken = default)
     {
-        var query = CoreQuery();
+        var query = ListCoreQuery();
         query = ApplyFilter(query, filter ?? new ProductListFilter());
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
 
     public Task<Product?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        CoreQuery()
+        DetailCoreQuery()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
     public async Task<PagedResult<Product>> GetByCategoryAsync(
@@ -34,7 +34,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
     {
         var baseFilter = filter ?? new ProductListFilter();
         var merged = baseFilter with { CategoryId = categoryId };
-        var query = CoreQuery();
+        var query = ListCoreQuery();
         query = ApplyFilter(query, merged);
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
@@ -59,7 +59,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
             merged = merged with { SearchTerm = searchTerm.Trim() };
         }
 
-        var query = CoreQuery().Where(p => p.Category.Slug == slug);
+        var query = ListCoreQuery().Where(p => p.Category.Slug == slug);
         query = ApplyFilter(query, merged);
         return await ToPagedAsync(query, sort, page, cancellationToken);
     }
@@ -85,7 +85,7 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
         CancellationToken cancellationToken = default)
     {
         var limit = take < 1 ? 8 : (take > 100 ? 100 : take);
-        return await CoreQuery()
+        return await ListCoreQuery()
             .Where(p => p.IsPublished && p.StockQuantity > 0)
             .OrderByDescending(p => p.CreatedAtUtc)
             .Take(limit)
@@ -135,10 +135,18 @@ public sealed class ProductRepository(ApplicationDbContext context) : IProductRe
     }
 
     /// <summary>
-    /// Base query: no-tracking, split queries (avoids row explosion with collection includes),
-    /// eager loads <see cref="Product.Category"/> and ordered <see cref="Product.Images"/>.
+    /// Paged/category storefront listings: excludes relational <see cref="Product.Images"/> so SQL does not hydrate gallery rows.
     /// </summary>
-    private IQueryable<Product> CoreQuery() =>
+    private IQueryable<Product> ListCoreQuery() =>
+        context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(p => p.Category);
+
+    /// <summary>
+    /// Product detail graphs that need relational gallery ordering.
+    /// </summary>
+    private IQueryable<Product> DetailCoreQuery() =>
         context.Products
             .AsNoTracking()
             .AsSplitQuery()

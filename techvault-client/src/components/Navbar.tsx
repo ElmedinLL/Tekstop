@@ -7,6 +7,7 @@ import { fetchCategories } from '../lib/categories'
 import { resolveApiAssetUrl } from '../lib/assetUrl'
 import { useCartStore } from '../store/useCartStore'
 import { useCompareStore } from '../store/useCompareStore'
+import { DarkModeToggle } from './DarkModeToggle'
 
 type NavbarProps = {
   onOpenCart?: () => void
@@ -147,6 +148,8 @@ export function Navbar({ onOpenCart }: NavbarProps) {
 
   const catRef = useClickOutside(catOpen, closeCats)
   const userRef = useClickOutside(userOpen, closeUser)
+  const catPanelRef = useRef<HTMLDivElement | null>(null)
+  const userPanelRef = useRef<HTMLDivElement | null>(null)
 
   const { data: categories = [], isPending: catsLoading } = useQuery({
     queryKey: ['categories'],
@@ -171,15 +174,33 @@ export function Navbar({ onOpenCart }: NavbarProps) {
       ? resolveApiAssetUrl(user.profilePicture)
       : null
 
-  const displayName =
-    user?.firstName || user?.lastName
-      ? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
-      : user?.email ?? 'Account'
+  const displayName = user
+    ? [user.firstName?.trim(), user.lastName?.trim()].filter(Boolean).join(' ') ||
+      user.email.split('@')[0] ||
+      user.email
+    : 'Account'
+
+  useEffect(() => {
+    if (!catOpen) return
+    const id = window.requestAnimationFrame(() => {
+      catPanelRef.current?.querySelector<HTMLElement>('a[role="menuitem"]')?.focus()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [catOpen])
+
+  useEffect(() => {
+    if (!userOpen) return
+    const id = window.requestAnimationFrame(() => {
+      userPanelRef.current?.querySelector<HTMLElement>('a[role="menuitem"],button[role="menuitem"]')
+        ?.focus()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [userOpen])
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm transition-shadow duration-200 ${
-        scrolled ? 'shadow-md shadow-slate-900/10' : ''
+      className={`no-print sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm transition-shadow duration-200 dark:border-slate-800 dark:bg-slate-950/95 ${
+        scrolled ? 'shadow-md shadow-slate-900/10 dark:shadow-slate-900/60' : ''
       }`}
     >
       <nav className="mx-auto max-w-7xl px-4" aria-label="Main">
@@ -190,15 +211,21 @@ export function Navbar({ onOpenCart }: NavbarProps) {
               className="flex items-center gap-2 rounded-lg pr-1 text-slate-900 outline-none ring-blue-500/0 transition hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               <LogoIcon className="h-9 w-9 shrink-0" />
-              <span className="hidden text-lg font-semibold tracking-tight sm:inline">TechVault</span>
+              <span className="hidden text-lg font-semibold tracking-tight text-slate-900 sm:inline dark:text-slate-50">
+                TechVault
+              </span>
             </Link>
 
             <Link
               to="/about"
-              className="hidden text-sm font-medium text-slate-600 transition hover:text-blue-700 md:inline"
+              className="hidden text-sm font-medium text-slate-600 transition hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-400 md:inline"
             >
               About
             </Link>
+
+            <div className="hidden items-center px-1 md:flex">
+              <DarkModeToggle />
+            </div>
 
             <div className="relative" ref={catRef}>
               <button
@@ -217,24 +244,33 @@ export function Navbar({ onOpenCart }: NavbarProps) {
               </button>
               {catOpen && (
                 <div
+                  ref={catPanelRef}
+                  tabIndex={-1}
                   id="nav-categories-panel"
-                  className="absolute left-0 top-full z-50 mt-1.5 max-h-[min(24rem,70vh)] w-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                  className="absolute left-0 top-full z-50 mt-1.5 max-h-[min(24rem,70vh)] w-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg outline-none dark:border-slate-700 dark:bg-slate-900"
                   role="menu"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      closeCats()
+                    }
+                  }}
                 >
                   {catsLoading && (
-                    <p className="px-3 py-2.5 text-sm text-slate-500" role="presentation">
+                    <p className="px-3 py-2.5 text-sm text-slate-500 dark:text-slate-400" role="presentation">
                       Loading…
                     </p>
                   )}
                   {!catsLoading && activeCategories.length === 0 && (
-                    <p className="px-3 py-2.5 text-sm text-slate-500">No categories</p>
+                    <p className="px-3 py-2.5 text-sm text-slate-500 dark:text-slate-400">No categories</p>
                   )}
                   {activeCategories.map((c) => (
                     <Link
                       key={c.id}
                       to={`/category/${encodeURIComponent(c.slug)}`}
+                      tabIndex={0}
                       role="menuitem"
-                      className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-blue-700"
+                      className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-300"
                       onClick={closeCats}
                     >
                       {c.name}
@@ -253,7 +289,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
             <label htmlFor="nav-search" className="sr-only">
               Search products
             </label>
-            <div className="flex w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50/80 shadow-sm transition focus-within:border-blue-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+            <div className="flex w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50/80 shadow-sm transition focus-within:border-blue-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/60 focus-within:dark:bg-slate-950">
               <div className="flex items-center pl-3 text-slate-400">
                 <SearchIcon className="h-5 w-5" />
               </div>
@@ -263,7 +299,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search products, brands, SKU…"
                 autoComplete="off"
-                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
               <button
                 type="submit"
@@ -326,6 +362,11 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                 aria-expanded={userOpen}
                 aria-haspopup="true"
                 aria-controls="nav-user-panel"
+                aria-label={
+                  isAuthenticated
+                    ? `Open account menu (${displayName})`
+                    : 'Open account menu — sign in or create account'
+                }
                 onClick={() => {
                   setUserOpen((o) => !o)
                   setCatOpen(false)
@@ -344,20 +385,28 @@ export function Navbar({ onOpenCart }: NavbarProps) {
               </button>
               {userOpen && (
                 <div
+                  ref={userPanelRef}
+                  tabIndex={-1}
                   id="nav-user-panel"
-                  className="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                  className="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg outline-none dark:border-slate-700 dark:bg-slate-900"
                   role="menu"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      closeUser()
+                    }
+                  }}
                 >
                   {isAuthenticated ? (
                     <>
-                      <div className="border-b border-slate-100 px-3 py-2.5">
-                        <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
-                        <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                      <div className="border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{displayName}</p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
                       </div>
                       <Link
                         to="/account"
                         role="menuitem"
-                        className="block px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                         onClick={closeUser}
                       >
                         Account settings
@@ -365,7 +414,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/orders"
                         role="menuitem"
-                        className="block px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                         onClick={closeUser}
                       >
                         My orders
@@ -373,7 +422,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/wishlist"
                         role="menuitem"
-                        className="block px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 sm:hidden"
+                        className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800 sm:hidden"
                         onClick={closeUser}
                       >
                         Wishlist
@@ -382,7 +431,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                         <Link
                           to="/admin"
                           role="menuitem"
-                          className="block px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                          className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                           onClick={closeUser}
                         >
                           Admin panel
@@ -391,7 +440,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/about"
                         role="menuitem"
-                        className="block border-t border-slate-100 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 md:hidden"
+                        className="block border-t border-slate-100 px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
                         onClick={closeUser}
                       >
                         About
@@ -399,7 +448,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <button
                         type="button"
                         role="menuitem"
-                        className="w-full px-3 py-2.5 text-left text-sm font-medium text-rose-700 hover:bg-rose-50"
+                        className="w-full px-3 py-2.5 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/60"
                         onClick={() => {
                           closeUser()
                           void logout()
@@ -413,7 +462,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/login"
                         role="menuitem"
-                        className="block px-3 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50"
+                        className="block px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:bg-slate-50 dark:text-slate-50 dark:hover:bg-slate-800"
                         onClick={closeUser}
                       >
                         Sign in
@@ -421,7 +470,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/register"
                         role="menuitem"
-                        className="block px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                         onClick={closeUser}
                       >
                         Create account
@@ -429,7 +478,7 @@ export function Navbar({ onOpenCart }: NavbarProps) {
                       <Link
                         to="/about"
                         role="menuitem"
-                        className="block border-t border-slate-100 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 md:hidden"
+                        className="block border-t border-slate-100 px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
                         onClick={closeUser}
                       >
                         About
